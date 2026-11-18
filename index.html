@@ -121,8 +121,8 @@
             <input type="text" id="nameInput" placeholder="Enter your full name" required />
           </div>
           <div>
-            <label>Batch / Section *</label>
-            <input type="text" id="batchInput" placeholder="e.g., B.Tech CSE III A-1" required />
+            <label>Course-Branch-Sem-Batch-Group *</label>
+            <input type="text" id="batchInput" placeholder="e.g., B.Tech-CSE-III-A-1" required />
           </div>
         </div>
         <p style="color: var(--muted); font-size: 0.88rem; margin-top: 14px;">
@@ -237,7 +237,7 @@
       const name = document.getElementById("nameInput").value.trim();
       const batch = document.getElementById("batchInput").value.trim();
       if (!roll || !name || !batch) {
-        alert("Please enter your Roll Number, Full Name, and Batch / Section.");
+        alert("Please enter your Roll Number, Full Name, and Course-Branch-Sem-Batch-Group.");
         return;
       }
       examQuestions = pickRandomImportantQuestions(EXAM_QUESTION_COUNT);
