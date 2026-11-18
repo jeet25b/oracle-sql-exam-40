@@ -1,28 +1,82 @@
-ORACLE SQL & PL/SQL 40-MCQ SCHEDULED EXAM PORTAL — SETUP GUIDE
+ORACLE SQL ASSESSMENT — DEPLOYMENT AND OPERATIONS
 
-1. GOOGLE SHEETS & APPS SCRIPT SETUP
-   a. Create a new Google Sheet and rename two tabs:
-      - Tab 1: Settings
-      - Tab 2: Results
-   b. In the 'Settings' tab, populate rows 1 to 6:
-      Row 1: Key             | Value
-      Row 2: ExamTitle       | Oracle SQL & PL/SQL Assessment (40 MCQs)
-      Row 3: StartTimeIST    | 2026-11-25T10:00:00+05:30
-      Row 4: EndTimeIST      | 2026-11-25T11:30:00+05:30
-      Row 5: DurationMinutes | 60
-      Row 6: AllowMultiple   | FALSE
-   c. In the 'Results' tab, set Row 1 headers:
-      Timestamp | RollNumber | StudentName | Batch | Score | TotalQuestions | Percentage | TimeTakenSec | TabSwitches
-   d. Open Extensions > Apps Script, paste the contents of Code.gs, save, and click:
-      Deploy > New deployment > Web app > Execute as: Me > Who has access: Anyone.
-   e. Copy the generated Web App URL (/exec).
+This version changes both the student page and the Apps Script API. Deploy both together.
+Local changes do not update the live GitHub Pages site or the existing Apps Script deployment.
 
-2. FRONTEND & QUESTION BANK SETUP
-   a. Open index.html and replace YOUR_DEPLOYMENT_ID in SCRIPT_URL with your Web App URL.
-   b. Default faculty passcode in index.html is set to: oracle2026 (change TEACHER_PASSCODE before publishing).
-   c. Open important_questions.js (currently preloaded with 45 important Oracle SQL & PL/SQL MCQs) and paste any additional questions from your previous quiz with `important: true`.
+1. PRIVATE APPS SCRIPT PROJECT
+   Add Code.gs AND QuestionBank.gs to the same Google Apps Script project bound to your faculty spreadsheet.
+   QuestionBank.gs contains the canonical question bank and answer keys. Do not publish it with the website.
+   In Project Settings > Script properties, add ADMIN_PASSKEY with a new private faculty password.
+   The previous hardcoded faculty password has been removed from Code.gs.
+   Update teacher.html access using that new password at login; no password is embedded in the page.
 
-3. DEPLOY ON GITHUB PAGES
-   a. Upload index.html and important_questions.js to a new GitHub repository (e.g., jeet25b/oracle-sql-exam-40).
-   b. Go to Settings > Pages > Branch: main / (root) > Save.
-   c. Download results anytime in .xlsx format either from the Teacher Results button on the portal or via File > Download > Microsoft Excel (.xlsx) in Google Sheets.
+2. GOOGLE SHEETS
+   Settings tab, columns A:B, with header Key | Value:
+     OPEN_TIME       | an ISO time including timezone, e.g. YYYY-MM-DDTHH:mm:ss+05:30
+     CLOSE_TIME      | a later ISO time including timezone
+     DurationMinutes | 60
+     ExamTitle       | Oracle SQL Assessment
+   The teacher page can set opening and closing times. All visible schedule times are IST (UTC+05:30).
+   Missing/invalid schedules keep the exam locked; no expired default schedule is used.
+
+   Students tab, columns A:C, with header Roll Number | Student Name | Access Code:
+     Add each enrolled student's roll number, registered name and a unique private random access code.
+     Format roll numbers and access codes as plain text before entering them. Preserve leading zeros.
+     Use a long random code per student, distribute privately, and do not reuse the faculty password.
+     The roster is required. Without it, new attempts are blocked with an explanatory message.
+     Registration codes verify possession of the teacher-issued credential; this is not institutional SSO.
+
+   Results is created automatically. Its first ten columns are:
+     Timestamp (IST), Roll Number, Student Name, Batch, Total Score, Max Marks,
+     Correct, Wrong, Unattempted, Question Breakdown JSON; followed by Q1_Marks ... Q40_Marks.
+   Existing results with this schema are preserved and block new attempts for the same roll number.
+   If your existing Results uses the older Timestamp/RollNumber/StudentName layout,
+   rename it Results_Archive before rollout, then migrate any rolls that must remain blocked.
+
+   Attempts is created automatically. It stores each student's fixed shuffled question set,
+   session token, deadline, saved answers and result. Keep this spreadsheet private to faculty.
+   Do not delete Attempts or Results during the exam. One attempt is reserved when a student starts.
+   A new login resumes that same attempt; it does not reset the question set or timer.
+   For a fresh exam cohort/window, use a separate spreadsheet/deployment or archive BOTH tables deliberately.
+   Changing only the exam window does not grant another attempt.
+
+3. DEPLOY THE API
+   Deploy > Manage deployments > Edit > New version > Deploy.
+   Run as the spreadsheet owner; allow students to access the web app.
+   Keep the existing /exec URL when editing the existing deployment. If it changes, update SCRIPT_URL
+   in exam.js and teacher.html together. Never place credentials in public JavaScript.
+
+4. PUBLISH THE WEBSITE
+   Publish ONLY index.html, exam.css, exam.js and teacher.html.
+   The supplied .github/workflows/deploy.yml builds a Pages artifact containing only these assets.
+   In GitHub Settings > Pages choose GitHub Actions, then run/push the workflow after deploying the API.
+   Do not publish Code.gs, QuestionBank.gs, tests, Students data or saved attempts as website assets.
+   QuestionBank.gs is ignored by Git and must be copied privately into Apps Script.
+   If the repository or prior question bank is public, old answer keys may exist in Git history.
+   Use a fresh private question bank for a high-stakes exam. Server grading does not erase public history.
+
+5. STUDENT EXPERIENCE
+   Green means answered before final submission. Red appears for incorrect questions only after server grading.
+   Submit Question saves the current answer; students can edit unlocked questions until final Submit Exam.
+   Switching tabs or moving focus away permanently locks the current question. Its current answer
+   (or unanswered state) is retained. Locks persist on the device and backend through refresh/resume;
+   later save/submit requests cannot change a lock already recorded by the backend.
+   Browser focus events detect focus loss, including other apps; they are not a substitute for proctoring.
+   Navigator flags, accessible radio controls, keyboard focus and a final review dialog are included.
+   A local device copy saves immediately and online progress syncs after edits and every 20 seconds.
+   Re-enter the student code after refresh to resume. The access code itself is never saved on the device.
+   Offline work is retained locally. A server deadline cannot be reset by refreshing or reconnecting.
+   At timeout the page submits automatically. Final requests have a 15-second network arrival tolerance.
+   If reconnecting later, the backend grades the last answers saved online before the deadline;
+   unsynced answers after that cutoff cannot be accepted. Explain this to students in advance.
+   If the browser is closed at timeout, reconnecting finalizes the saved attempt; no background job is installed.
+   Retry submission returns the same result if the server saved it but the response was lost.
+   Browser storage is best-effort and may be unavailable in private/restricted modes; keep the page open.
+   Receipts export as CSV (Excel compatible), with JSON backup for unconfirmed submissions.
+   Only correctness is released after submission; detailed answer keys/solutions are not sent to the browser.
+   Clear site storage on shared devices after downloading the receipt; do not share session tokens.
+
+6. VALIDATION
+   Run: node tests/exam.test.cjs
+   Tests use an in-memory spreadsheet/API simulation; they never access real student records.
+   Perform one staging deployment test with a test roster before opening the real exam.

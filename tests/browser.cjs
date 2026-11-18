@@ -1,0 +1,46 @@
+const fs=require('node:fs'),path=require('node:path'),assert=require('node:assert/strict');
+(async()=>{
+const targets=await(await fetch('http://127.0.0.1:9223/json/list')).json();const target=targets.find(t=>t.type==='page');assert(target,'No browser page');
+const ws=new WebSocket(target.webSocketDebuggerUrl);await new Promise((r,j)=>{ws.onopen=r;ws.onerror=j});let seq=0;const pending=new Map(),errors=[];
+ws.onmessage=event=>{const m=JSON.parse(event.data);if(m.id){const p=pending.get(m.id);if(!p)return;pending.delete(m.id);m.error?p.reject(m.error):p.resolve(m.result);}if(m.method==='Runtime.exceptionThrown')errors.push(m.params.exceptionDetails.text+': '+(m.params.exceptionDetails.exception?.description||''));};
+const send=(method,params={})=>new Promise((resolve,reject)=>{const id=++seq;const timeout=setTimeout(()=>{pending.delete(id);reject(Error("RPC timeout: "+method))},15000);pending.set(id,{resolve:r=>{clearTimeout(timeout);resolve(r)},reject:e=>{clearTimeout(timeout);reject(e)}});ws.send(JSON.stringify({id,method,params}));});
+const evaluate=async expression=>{const r=await send('Runtime.evaluate',{expression,awaitPromise:true,returnByValue:true,userGesture:true});if(r.exceptionDetails)throw Error(r.exceptionDetails.exception?.description||r.exceptionDetails.text);return r.result.value;};
+async function wait(expression){for(let i=0;i<80;i++){if(await evaluate(expression))return;await new Promise(r=>setTimeout(r,100));}throw Error('Timeout: '+expression);}
+const out=path.join(__dirname,'..','.preview');fs.mkdirSync(out,{recursive:true});
+async function shot(name){const r=await send('Page.captureScreenshot',{format:'png',captureBeyondViewport:true});fs.writeFileSync(path.join(out,name+'.png'),Buffer.from(r.data,'base64'));}
+await send('Page.enable');await send('Runtime.enable');await send('Emulation.setDeviceMetricsOverride',{width:1440,height:1100,deviceScaleFactor:1,mobile:false});
+await send('Storage.clearDataForOrigin',{origin:'http://127.0.0.1:4173',storageTypes:'all'});await send('Page.navigate',{url:'http://127.0.0.1:4173'});await wait('document.getElementById("accessBanner")?.textContent.includes("open")');
+assert(await evaluate('document.documentElement.scrollWidth<=innerWidth'));
+await shot('desktop-login');await evaluate('document.getElementById("themeBtn").click()');assert.equal(await evaluate('document.documentElement.dataset.theme'),'dark');await shot('desktop-dark');await evaluate('document.getElementById("themeBtn").click()');
+await send('Emulation.setDeviceMetricsOverride',{width:390,height:844,deviceScaleFactor:1,mobile:true});await shot('mobile-login');assert(await evaluate('document.documentElement.scrollWidth<=innerWidth'));
+await send('Emulation.setDeviceMetricsOverride',{width:1440,height:1100,deviceScaleFactor:1,mobile:false});
+await evaluate(`for(const [id,value]of Object.entries({rollInput:'TEST001',nameInput:'Alex Morgan',accessCode:'test-code-001',courseInput:'B.Tech',branchInput:'CSE',semInput:'3',batchInput:'A',groupInput:'1'}))document.getElementById(id).value=value;document.getElementById('acknowledge').checked=true;document.getElementById('studentForm').requestSubmit();`);
+await wait('document.getElementById("qCounter").textContent.includes("Question 1")');
+assert.equal(await evaluate('document.querySelectorAll("input[type=radio]").length'),4);
+await evaluate('document.querySelector("input[type=radio]").click();document.getElementById("flagBtn").click();document.getElementById("submitQuestionBtn").click()');
+await wait('document.getElementById("saveStatus").textContent.includes("online")');
+assert(await evaluate('document.querySelector(".pal-btn").classList.contains("answered")'));assert.equal(await evaluate('document.querySelectorAll(".incorrect").length'),0);
+await evaluate('window.dispatchEvent(new Event("blur"))');
+await wait('document.getElementById("submitQuestionBtn").textContent.includes("locked")');
+assert(await evaluate('[...document.querySelectorAll("input[type=radio]")].every(r=>r.disabled)'));
+assert(await evaluate('document.getElementById("clearBtn").disabled'));
+await evaluate('document.getElementById("nextBtn").click()');assert(await evaluate('[...document.querySelectorAll("input[type=radio]")].every(r=>!r.disabled)'));
+await evaluate('document.getElementById("prevBtn").click()');assert(await evaluate('[...document.querySelectorAll("input[type=radio]")].every(r=>r.disabled)'));
+await shot('desktop-exam');
+await send('Emulation.setDeviceMetricsOverride',{width:390,height:844,deviceScaleFactor:1,mobile:true});assert(await evaluate('document.documentElement.scrollWidth<=innerWidth'));await shot('mobile-exam');console.log('Mobile exam layout passed');
+// Refresh must recover the same attempt and the answer after reauthentication.
+const old=await evaluate('JSON.parse(localStorage.getItem("oracle-sql-attempt-v2")).attempt');
+console.log('Checking refresh recovery');await send('Page.reload');await wait('document.getElementById("accessBanner")?.textContent.includes("resume")');
+await evaluate(`for(const [id,value]of Object.entries({accessCode:'test-code-001',courseInput:'B.Tech',branchInput:'CSE',semInput:'3',batchInput:'A',groupInput:'1'}))document.getElementById(id).value=value;document.getElementById('acknowledge').checked=true;document.getElementById('studentForm').requestSubmit();`);
+await wait('document.querySelector("input[type=radio]:checked")!==null');
+assert.equal(await evaluate('JSON.parse(localStorage.getItem("oracle-sql-attempt-v2")).attempt.token'),old.token);assert(await evaluate('[...document.querySelectorAll("input[type=radio]")].every(r=>r.disabled)'));
+await evaluate('document.getElementById("submitExamBtn").click()');assert(await evaluate('document.getElementById("submitDialog").open'));assert((await evaluate('document.getElementById("confirmCounts").textContent')).includes('Unanswered: 39'));await shot('mobile-confirmation');
+await evaluate(`window.qaOriginalFetch=window.fetch;window.fetch=async(...args)=>{if(args[1]?.body&&JSON.parse(args[1].body).action==='submit')throw new TypeError('Simulated connection failure');return window.qaOriginalFetch(...args)};document.getElementById('confirmFinalBtn').click()`);
+await wait('document.getElementById("resultHeading").textContent.includes("awaiting confirmation")');
+assert.equal(await evaluate('document.querySelectorAll("#resultNavigator .incorrect").length'),0);assert(await evaluate('!document.getElementById("retryBtn").classList.contains("hidden")'));
+await shot('mobile-pending');await evaluate('window.fetch=window.qaOriginalFetch;document.getElementById("retryBtn").click()');await wait('document.getElementById("resultHeading").textContent.includes("successfully")');
+assert.equal(await evaluate('document.querySelectorAll("#resultNavigator .pal-btn").length'),40);assert(await evaluate('document.documentElement.scrollWidth<=innerWidth'));await shot('mobile-results');
+await send('Emulation.setDeviceMetricsOverride',{width:1440,height:1100,deviceScaleFactor:1,mobile:false});await shot('desktop-results');
+assert(!await evaluate('document.body.innerText.includes("Â")'),'UTF-8 punctuation');assert.equal(errors.length,0,errors.join('\n'));console.log('PASS: desktop/mobile layouts, accessible radio interaction, hidden correctness, flags, online save, refresh recovery, confirmation and final results. Screenshots: .preview/*.png');
+await send('Browser.close');ws.close();
+})().catch(e=>{console.error(e);process.exitCode=1;process.exit(1)});

@@ -172,6 +172,9 @@
 
 <script>
   const SCRIPT_URL = "https://script.google.com/macros/s/AKfycbyJvfaFqcPD85SF4XJ_M7AcGe7KLkCc62-fL5Fk-G3dOqXjWGeXo4LtsseAY2PidzWGFA/exec"; // <-- Paste your Web App URL here
+  function escapeHtml(value) {
+    return String(value ?? "").replace(/[&<>"']/g, char => ({"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;","'":"&#39;"}[char]));
+  }
   let adminKey = "";
   let allResults = [];
 
@@ -214,10 +217,10 @@
     badge.className = "status-pill " + (win.isOpen ? "status-open" : "status-closed");
 
     document.getElementById("windowSummary").innerHTML =
-      `Current Schedule: <strong>${win.openFormatted}</strong> to <strong>${win.closeFormatted}</strong>`;
+      `Current Schedule: <strong>${win.openFormatted || "Not configured"}</strong> to <strong>${win.closeFormatted || "Not configured"}</strong>`;
 
-    if (win.openISO) document.getElementById("openTimeInput").value = win.openISO.slice(0, 16);
-    if (win.closeISO) document.getElementById("closeTimeInput").value = win.closeISO.slice(0, 16);
+    if (win.openISO) document.getElementById("openTimeInput").value = new Date(new Date(win.openISO).getTime() + 330 * 60000).toISOString().slice(0, 16);
+    if (win.closeISO) document.getElementById("closeTimeInput").value = new Date(new Date(win.closeISO).getTime() + 330 * 60000).toISOString().slice(0, 16);
   }
 
   async function saveWindowSchedule() {
@@ -276,10 +279,10 @@
 
     tbody.innerHTML = filtered.map((r, idx) => `
       <tr>
-        <td>${r.timestamp}</td>
-        <td><strong>${r.rollNo}</strong></td>
-        <td>${r.name}</td>
-        <td>${r.batch}</td>
+        <td>${escapeHtml(r.timestamp)}</td>
+        <td><strong>${escapeHtml(r.rollNo)}</strong></td>
+        <td>${escapeHtml(r.name)}</td>
+        <td>${escapeHtml(r.batch)}</td>
         <td><strong style="color: var(--accent);">${r.score} / ${r.maxMarks}</strong></td>
         <td style="color: var(--green); font-weight:600;">${r.correct}</td>
         <td style="color: var(--red); font-weight:600;">${r.wrong}</td>
