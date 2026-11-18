@@ -1,0 +1,438 @@
+<!DOCTYPE html>
+<html lang="en" data-theme="dark">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Oracle SQL & PL/SQL — Scheduled 40-MCQ Assessment</title>
+  <script src="https://cdn.sheetjs.com/xlsx-0.20.3/package/dist/xlsx.full.min.js"></script>
+  <script src="important_questions.js"></script>
+  <style>
+    :root {
+      --bg: #0f172a; --card: #1e293b; --text: #f1f5f9; --muted: #94a3b8;
+      --border: #334155; --accent: #38bdf8; --accent-hover: #0284c7;
+      --success: #22c55e; --danger: #ef4444; --warn: #f59e0b;
+    }
+    [data-theme="light"] {
+      --bg: #f8fafc; --card: #ffffff; --text: #0f172a; --muted: #475569;
+      --border: #cbd5e1; --accent: #0284c7; --accent-hover: #0369a1;
+    }
+    * { box-sizing: border-box; }
+    body {
+      margin: 0; font-family: system-ui, -apple-system, sans-serif;
+      background: var(--bg); color: var(--text); line-height: 1.5;
+    }
+    header {
+      background: var(--card); border-bottom: 1px solid var(--border);
+      padding: 14px 24px; display: flex; justify-content: space-between;
+      align-items: center; position: sticky; top: 0; z-index: 100;
+    }
+    .brand { font-weight: 700; font-size: 1.1rem; color: var(--accent); }
+    .header-actions { display: flex; gap: 10px; align-items: center; }
+    button {
+      background: var(--accent); color: #fff; border: none; padding: 8px 14px;
+      border-radius: 6px; font-weight: 600; cursor: pointer; font-size: 0.9rem;
+    }
+    button:hover { background: var(--accent-hover); }
+    button.secondary { background: transparent; border: 1px solid var(--border); color: var(--text); }
+    button.success { background: var(--success); color: #052e16; }
+    button.danger { background: var(--danger); color: #fff; }
+    button:disabled { opacity: 0.5; cursor: not-allowed; }
+    .container { max-width: 960px; margin: 28px auto; padding: 0 18px; }
+    .card {
+      background: var(--card); border: 1px solid var(--border);
+      border-radius: 10px; padding: 24px; margin-bottom: 20px;
+    }
+    .grid-2 { display: grid; grid-template-columns: repeat(auto-fit, minmax(220px, 1fr)); gap: 14px; }
+    label { display: block; font-size: 0.85rem; color: var(--muted); margin-bottom: 5px; }
+    input {
+      width: 100%; padding: 10px 12px; border-radius: 6px;
+      border: 1px solid var(--border); background: var(--bg); color: var(--text);
+    }
+    .status-banner {
+      padding: 16px; border-radius: 8px; border-left: 4px solid var(--warn);
+      background: rgba(245, 158, 11, 0.12); margin-bottom: 16px;
+    }
+    .status-banner.open { border-color: var(--success); background: rgba(34, 197, 94, 0.12); }
+    .status-banner.closed { border-color: var(--danger); background: rgba(239, 68, 68, 0.12); }
+    .timer-pill {
+      font-family: monospace; font-size: 1.1rem; font-weight: 700;
+      padding: 6px 12px; border-radius: 6px; background: rgba(56, 189, 248, 0.15);
+      color: var(--accent); border: 1px solid var(--accent);
+    }
+    .q-header { display: flex; justify-content: space-between; color: var(--muted); font-size: 0.85rem; margin-bottom: 8px; }
+    .q-text { font-size: 1.1rem; font-weight: 600; margin-bottom: 16px; }
+    .option {
+      display: flex; align-items: center; gap: 12px; padding: 12px 14px;
+      border: 1px solid var(--border); border-radius: 8px; margin-bottom: 10px;
+      cursor: pointer; transition: 0.15s;
+    }
+    .option:hover { border-color: var(--accent); }
+    .option.selected { border-color: var(--accent); background: rgba(56, 189, 248, 0.14); }
+    .palette { display: grid; grid-template-columns: repeat(auto-fill, minmax(38px, 1fr)); gap: 6px; margin-top: 16px; }
+    .pal-btn {
+      padding: 6px 0; text-align: center; border-radius: 5px; font-size: 0.8rem;
+      background: var(--bg); border: 1px solid var(--border); color: var(--text);
+    }
+    .pal-btn.answered { background: var(--success); color: #052e16; border-color: var(--success); }
+    .pal-btn.current { outline: 2px solid var(--accent); }
+    .table-wrap { overflow-x: auto; margin-top: 14px; }
+    table { width: 100%; border-collapse: collapse; font-size: 0.88rem; }
+    th, td { padding: 10px 12px; border-bottom: 1px solid var(--border); text-align: left; white-space: nowrap; }
+    th { color: var(--accent); }
+    .hidden { display: none !important; }
+  </style>
+</head>
+<body>
+  <header>
+    <div class="brand" id="examTitleHeader">Oracle SQL & PL/SQL — 40-MCQ Assessment</div>
+    <div class="header-actions">
+      <span id="timerDisplay" class="timer-pill hidden">60:00</span>
+      <button class="secondary" onclick="toggleTheme()">Theme</button>
+      <button class="secondary" onclick="openTeacherModal()">Teacher Results</button>
+    </div>
+  </header>
+
+  <div class="container">
+    <!-- 1. GATE / LOGIN VIEW -->
+    <div id="gateView" class="card">
+      <div id="accessBanner" class="status-banner">Checking exam schedule from server...</div>
+      <div id="studentForm" class="hidden">
+        <div class="grid-2">
+          <div>
+            <label>University Roll Number *</label>
+            <input type="text" id="rollInput" placeholder="e.g., 0901CS231045" required />
+          </div>
+          <div>
+            <label>Full Name *</label>
+            <input type="text" id="nameInput" placeholder="Enter your full name" required />
+          </div>
+          <div>
+            <label>Batch / Section</label>
+            <input type="text" id="batchInput" value="B.Tech CSE III A-1" />
+          </div>
+        </div>
+        <p style="color: var(--muted); font-size: 0.88rem; margin-top: 14px;">
+          • <strong>40 Important Questions</strong> are randomly selected and shuffled for your session.<br/>
+          • Your score saves directly to the faculty spreadsheet and Excel mark sheet upon submission.
+        </p>
+        <button onclick="startExam()">Start 40-Question Assessment</button>
+      </div>
+    </div>
+
+    <!-- 2. ACTIVE EXAM VIEW -->
+    <div id="examView" class="hidden">
+      <div class="card">
+        <div class="q-header">
+          <span id="qCounter">Question 1 of 40</span>
+          <span id="qTopic">Topic</span>
+        </div>
+        <div class="q-text" id="qText"></div>
+        <div id="optionsContainer"></div>
+        <div style="display:flex; justify-content:space-between; margin-top:20px;">
+          <button class="secondary" id="prevBtn" onclick="navigate(-1)">Previous</button>
+          <div style="display:flex; gap:10px;">
+            <button class="secondary" id="nextBtn" onclick="navigate(1)">Next</button>
+            <button class="success" onclick="confirmSubmit()">Submit Exam</button>
+          </div>
+        </div>
+      </div>
+      <div class="card">
+        <div style="font-size:0.85rem; color:var(--muted);">Question Navigator (Green = Answered)</div>
+        <div class="palette" id="questionPalette"></div>
+      </div>
+    </div>
+
+    <!-- 3. SUBMISSION RESULT VIEW -->
+    <div id="resultView" class="card hidden">
+      <h2 style="margin-top:0; color:var(--success);">Assessment Submitted</h2>
+      <p id="resultSummary"></p>
+      <button class="secondary" onclick="downloadPersonalReceipt()">Download My Score Receipt (.xlsx)</button>
+    </div>
+
+    <!-- 4. TEACHER DASHBOARD & EXCEL EXPORT -->
+    <div id="teacherView" class="card hidden">
+      <div style="display:flex; justify-content:space-between; align-items:center; flex-wrap:wrap; gap:10px;">
+        <h3 style="margin:0;">Faculty Results & Excel Export</h3>
+        <div style="display:flex; gap:10px;">
+          <button class="secondary" onclick="loadTeacherResults()">Refresh Data</button>
+          <button class="success" onclick="exportAllResultsToExcel()">Export All to Excel (.xlsx)</button>
+          <button class="danger" onclick="closeTeacherModal()">Close</button>
+        </div>
+      </div>
+      <div class="table-wrap">
+        <table id="resultsTable">
+          <thead>
+            <tr>
+              <th>Timestamp</th><th>RollNumber</th><th>StudentName</th><th>Batch</th>
+              <th>Score</th><th>TotalQuestions</th><th>Percentage</th><th>TimeTakenSec</th><th>TabSwitches</th>
+            </tr>
+          </thead>
+          <tbody id="resultsBody">
+            <tr><td colspan="9">Enter faculty passcode to load results.</td></tr>
+          </tbody>
+        </table>
+      </div>
+    </div>
+  </div>
+
+  <script>
+    // =========================================================================
+    // CONFIGURATION: Paste your deployed Google Apps Script Web App URL below
+    // =========================================================================
+    const SCRIPT_URL = "https://script.google.com/macros/s/YOUR_DEPLOYMENT_ID/exec";
+    const TEACHER_PASSCODE = "oracle2026";
+    const EXAM_QUESTION_COUNT = 40;
+
+    let examQuestions = [];
+    let userAnswers = {};
+    let currentIdx = 0;
+    let durationSeconds = 3600;
+    let remainingSeconds = 3600;
+    let timerInterval = null;
+    let startTimeEpoch = 0;
+    let tabSwitches = 0;
+    let lastSubmissionRecord = null;
+
+    // 1. Check Server-Side Date/Time Accessibility on Page Load
+    window.addEventListener("DOMContentLoaded", checkExamWindow);
+
+    async function checkExamWindow() {
+      const banner = document.getElementById("accessBanner");
+      const form = document.getElementById("studentForm");
+      try {
+        const res = await fetch(`${SCRIPT_URL}?action=status`);
+        const data = await res.json();
+        if (data.examTitle) document.getElementById("examTitleHeader").textContent = data.examTitle;
+
+        if (data.status === "OPEN") {
+          durationSeconds = (data.durationMinutes || 60) * 60;
+          banner.className = "status-banner open";
+          banner.innerHTML = `<strong>Exam Window is OPEN.</strong> Duration: ${data.durationMinutes || 60} mins. Enter your details below to begin.`;
+          form.classList.remove("hidden");
+        } else if (data.status === "LOCKED") {
+          banner.className = "status-banner";
+          banner.innerHTML = `<strong>Exam Locked:</strong> ${data.message}`;
+        } else {
+          banner.className = "status-banner closed";
+          banner.innerHTML = `<strong>Exam Closed:</strong> ${data.message}`;
+        }
+      } catch (err) {
+        banner.className = "status-banner closed";
+        banner.innerHTML = `<strong>Connection Error:</strong> Unable to verify exam schedule. Ensure SCRIPT_URL is configured and deployed.`;
+      }
+    }
+
+    // 2. Fisher-Yates Shuffle & Pick 40 Important Questions
+    function pickRandomImportantQuestions(count) {
+      const pool = (typeof MASTER_QUESTION_BANK !== "undefined" ? MASTER_QUESTION_BANK : [])
+        .filter(q => q.important === true);
+      for (let i = pool.length - 1; i > 0; i--) {
+        const j = Math.floor(Math.random() * (i + 1));
+        [pool[i], pool[j]] = [pool[j], pool[i]];
+      }
+      return pool.slice(0, Math.min(count, pool.length));
+    }
+
+    function startExam() {
+      const roll = document.getElementById("rollInput").value.trim();
+      const name = document.getElementById("nameInput").value.trim();
+      if (!roll || !name) {
+        alert("Please enter both your Roll Number and Full Name.");
+        return;
+      }
+      examQuestions = pickRandomImportantQuestions(EXAM_QUESTION_COUNT);
+      if (examQuestions.length === 0) {
+        alert("No important questions found in important_questions.js.");
+        return;
+      }
+
+      document.getElementById("gateView").classList.add("hidden");
+      document.getElementById("examView").classList.remove("hidden");
+      document.getElementById("timerDisplay").classList.remove("hidden");
+
+      startTimeEpoch = Date.now();
+      remainingSeconds = durationSeconds;
+      buildPalette();
+      renderQuestion(0);
+      startTimer();
+
+      document.addEventListener("visibilitychange", () => {
+        if (document.hidden && !document.getElementById("examView").classList.contains("hidden")) {
+          tabSwitches++;
+        }
+      });
+    }
+
+    function startTimer() {
+      updateTimerText();
+      timerInterval = setInterval(() => {
+        remainingSeconds--;
+        updateTimerText();
+        if (remainingSeconds <= 0) {
+          clearInterval(timerInterval);
+          submitExam(true);
+        }
+      }, 1000);
+    }
+
+    function updateTimerText() {
+      const m = String(Math.floor(remainingSeconds / 60)).padStart(2, "0");
+      const s = String(remainingSeconds % 60).padStart(2, "0");
+      document.getElementById("timerDisplay").textContent = `${m}:${s}`;
+    }
+
+    function renderQuestion(idx) {
+      currentIdx = idx;
+      const q = examQuestions[idx];
+      document.getElementById("qCounter").textContent = `Question ${idx + 1} of ${examQuestions.length}`;
+      document.getElementById("qTopic").textContent = q.topic || "Oracle SQL";
+      document.getElementById("qText").textContent = q.q;
+
+      const container = document.getElementById("optionsContainer");
+      container.innerHTML = "";
+      q.options.forEach((opt, optIdx) => {
+        const div = document.createElement("div");
+        div.className = "option" + (userAnswers[q.id] === optIdx ? " selected" : "");
+        div.innerHTML = `<strong>${String.fromCharCode(65 + optIdx)}.</strong> <span>${opt}</span>`;
+        div.onclick = () => {
+          userAnswers[q.id] = optIdx;
+          renderQuestion(idx);
+          updatePalette();
+        };
+        container.appendChild(div);
+      });
+
+      document.getElementById("prevBtn").disabled = idx === 0;
+      document.getElementById("nextBtn").disabled = idx === examQuestions.length - 1;
+      updatePalette();
+    }
+
+    function navigate(delta) {
+      const next = currentIdx + delta;
+      if (next >= 0 && next < examQuestions.length) renderQuestion(next);
+    }
+
+    function buildPalette() {
+      const pal = document.getElementById("questionPalette");
+      pal.innerHTML = "";
+      examQuestions.forEach((q, idx) => {
+        const btn = document.createElement("button");
+        btn.className = "pal-btn";
+        btn.textContent = idx + 1;
+        btn.onclick = () => renderQuestion(idx);
+        pal.appendChild(btn);
+      });
+    }
+
+    function updatePalette() {
+      const buttons = document.getElementById("questionPalette").children;
+      examQuestions.forEach((q, idx) => {
+        buttons[idx].className = "pal-btn" +
+          (userAnswers[q.id] !== undefined ? " answered" : "") +
+          (idx === currentIdx ? " current" : "");
+      });
+    }
+
+    function confirmSubmit() {
+      const answeredCount = Object.keys(userAnswers).length;
+      if (confirm(`You have answered ${answeredCount} of ${examQuestions.length} questions. Submit now?`)) {
+        submitExam(false);
+      }
+    }
+
+    async function submitExam(autoSubmitted) {
+      clearInterval(timerInterval);
+      let score = 0;
+      examQuestions.forEach(q => {
+        if (userAnswers[q.id] === q.ans) score++;
+      });
+
+      const timeTakenSec = Math.round((Date.now() - startTimeEpoch) / 1000);
+      const record = {
+        rollNumber: document.getElementById("rollInput").value.trim().toUpperCase(),
+        studentName: document.getElementById("nameInput").value.trim(),
+        batch: document.getElementById("batchInput").value.trim(),
+        score: score,
+        totalQuestions: examQuestions.length,
+        timeTakenSec: timeTakenSec,
+        tabSwitches: tabSwitches
+      };
+      lastSubmissionRecord = record;
+
+      document.getElementById("examView").classList.add("hidden");
+      document.getElementById("timerDisplay").classList.add("hidden");
+      document.getElementById("resultView").classList.remove("hidden");
+
+      const summary = document.getElementById("resultSummary");
+      summary.textContent = "Saving your score to the server...";
+
+      try {
+        const res = await fetch(SCRIPT_URL, {
+          method: "POST",
+          body: JSON.stringify(record)
+        });
+        const data = await res.json();
+        summary.innerHTML = `<strong>${data.message}</strong><br/>Roll Number: ${record.rollNumber} | Score: <strong>${score} / ${examQuestions.length}</strong>`;
+      } catch (err) {
+        summary.innerHTML = `Score: <strong>${score} / ${examQuestions.length}</strong>. (Offline fallback: download your Excel receipt below.)`;
+      }
+    }
+
+    // 3. Direct Excel (.xlsx) Export via SheetJS
+    function downloadPersonalReceipt() {
+      if (!lastSubmissionRecord) return;
+      const ws = XLSX.utils.json_to_sheet([lastSubmissionRecord]);
+      const wb = XLSX.utils.book_new();
+      XLSX.utils.book_append_sheet(wb, ws, "Student_Score");
+      XLSX.writeFile(wb, `${lastSubmissionRecord.rollNumber}_Oracle_SQL_Score.xlsx`);
+    }
+
+    function openTeacherModal() {
+      const code = prompt("Enter Faculty Passcode:");
+      if (code !== TEACHER_PASSCODE) {
+        alert("Invalid passcode.");
+        return;
+      }
+      document.getElementById("teacherView").classList.remove("hidden");
+      loadTeacherResults();
+    }
+
+    function closeTeacherModal() {
+      document.getElementById("teacherView").classList.add("hidden");
+    }
+
+    async function loadTeacherResults() {
+      const tbody = document.getElementById("resultsBody");
+      tbody.innerHTML = `<tr><td colspan="9">Loading records from Google Sheet...</td></tr>`;
+      try {
+        const res = await fetch(`${SCRIPT_URL}?action=results`);
+        const data = await res.json();
+        if (!data.results || data.results.length === 0) {
+          tbody.innerHTML = `<tr><td colspan="9">No submissions recorded yet.</td></tr>`;
+          return;
+        }
+        tbody.innerHTML = data.results.map(r => `
+          <tr>
+            <td>${r.Timestamp || ""}</td><td>${r.RollNumber || ""}</td><td>${r.StudentName || ""}</td>
+            <td>${r.Batch || ""}</td><td>${r.Score ?? ""}</td><td>${r.TotalQuestions ?? ""}</td>
+            <td>${r.Percentage || ""}</td><td>${r.TimeTakenSec ?? ""}</td><td>${r.TabSwitches ?? ""}</td>
+          </tr>
+        `).join("");
+      } catch (err) {
+        tbody.innerHTML = `<tr><td colspan="9">Failed to load results. Check SCRIPT_URL.</td></tr>`;
+      }
+    }
+
+    function exportAllResultsToExcel() {
+      const table = document.getElementById("resultsTable");
+      const wb = XLSX.utils.table_to_book(table, { sheet: "Exam_Results" });
+      XLSX.writeFile(wb, `Oracle_SQL_40MCQ_Results_${new Date().toISOString().slice(0,10)}.xlsx`);
+    }
+
+    function toggleTheme() {
+      const html = document.documentElement;
+      html.setAttribute("data-theme", html.getAttribute("data-theme") === "dark" ? "light" : "dark");
+    }
+  </script>
+</body>
+</html>
