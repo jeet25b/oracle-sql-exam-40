@@ -17,7 +17,6 @@
       --green-bg: rgba(34, 197, 94, 0.15);
       --red: #ef4444;
       --red-bg: rgba(239, 68, 68, 0.18);
-      --amber: #f59e0b;
     }
     * { box-sizing: border-box; font-family: 'Segoe UI', system-ui, sans-serif; }
     body { margin: 0; background: var(--bg); color: var(--text); }
@@ -65,7 +64,7 @@
     .q-correct { background: var(--green-bg); color: var(--green); border: 1px solid var(--green); }
     .q-wrong { background: var(--red-bg); color: var(--red); border: 1px solid var(--red); }
     .q-skip { background: rgba(148,163,184,0.12); color: var(--muted); border: 1px solid var(--border); }
-    .hidden { display: none; }
+    .hidden { display: none !important; }
     .modal-backdrop {
       position: fixed; inset: 0; background: rgba(0,0,0,0.75);
       display: flex; align-items: center; justify-content: center; padding: 20px; z-index: 50;
@@ -90,7 +89,7 @@
   <div id="authCard" class="card" style="max-width: 440px; margin: 60px auto;">
     <h2>Teacher Authentication</h2>
     <label for="passkeyInput">Enter Admin Passkey</label>
-    <input type="password" id="passkeyInput" placeholder="Enter passkey..." />
+    <input type="password" id="passkeyInput" placeholder="Enter passkey..." onkeyup="if(event.key==='Enter') authenticate()" />
     <div style="margin-top: 16px; display: flex; gap: 10px;">
       <button class="btn-primary" onclick="authenticate()" style="width: 100%;">Unlock Dashboard</button>
     </div>
@@ -185,6 +184,10 @@
   }
 
   async function loadDashboardData(isInitial = false) {
+    if (SCRIPT_URL === "YOUR_APPS_SCRIPT_URL_HERE" || !SCRIPT_URL.startsWith("http")) {
+      document.getElementById("authMsg").textContent = "Please paste your Google Apps Script Web App URL into SCRIPT_URL inside teacher.html first.";
+      return;
+    }
     try {
       const res = await fetch(`${SCRIPT_URL}?action=results&key=${encodeURIComponent(adminKey)}`);
       const data = await res.json();
