@@ -1,4 +1,4 @@
-const ADMIN_PASSKEY = "Oracle@2026"; // Change this to your preferred teacher password
+const ADMIN_PASSKEY = "BTechCSE@2026"; // Change this to your preferred teacher password
 const SETTINGS_SHEET = "Settings";
 const RESULTS_SHEET = "Results";
 
