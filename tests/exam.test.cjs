@@ -53,6 +53,17 @@ test('blank question remains blank when locked and submitted exams do not acquir
  assert.equal(vm.runInContext('attempt.answers[3]',ctx),undefined);assert.equal(vm.runInContext('questionBlocked()',ctx),true);
  vm.runInContext('finalized=true;attempt.currentIdx=1;lockCurrentQuestion();',ctx);assert.equal(vm.runInContext('attempt.lockedQuestions.includes(2)',ctx),false);
 });
+test('old deployed API is blocked before login with an actionable update message',async()=>{
+ const {ctx,elements}=ui();
+ ctx.fetch=async()=>({ok:true,json:async()=>({state:'OPEN',isOpen:true})});
+ const visible={};elements.studentForm={classList:{toggle:(name,hidden)=>visible.hidden=hidden}};
+ await vm.runInContext('checkExamWindow()',ctx);
+ assert(elements.accessBanner.textContent.includes('server needs an update'));assert.equal(visible.hidden,true);
+});
+test('old POST action errors explain deployment rather than showing a raw API error',async()=>{
+ const {ctx}=ui();ctx.fetch=async()=>({ok:true,json:async()=>({status:'error',message:'Invalid POST action'})});
+ await assert.rejects(vm.runInContext('api({action:"startAttempt"})',ctx),/deploy the latest Apps Script/);
+});
 if(!process.argv.includes('--frontend-only')){
  const {createBackend}=require('./harness.cjs');
  const start=(b,roll='TEST001',code='test-code-001')=>b.post({action:'startAttempt',rollNo:roll,name:'Untrusted name',batch:'B.Tech-CSE-3-A-1',accessCode:code});
@@ -86,7 +97,7 @@ if(!process.argv.includes('--frontend-only')){
   const b=createBackend(),a=start(b).attempt;b.setClock(a.deadline+16000);const resumed=start(b);assert.equal(resumed.attempt.token,a.token);assert.equal(resumed.result.score,0);assert.equal(b.sheets.get('Results').rows.length,2);start(b);assert.equal(b.sheets.get('Results').rows.length,2);
  });
  test('schedule preserves duration, handles missing settings and never accepts invalid windows',()=>{
-  const b=createBackend();assert.equal(b.get({action:'status'}).state,'OPEN');
+  const b=createBackend();assert.equal(b.get({action:'status'}).state,'OPEN');assert.equal(b.get({action:'status'}).apiVersion,3);
   assert.equal(b.post({action:'updateWindow',key:'test-admin-key',openTime:'invalid',closeTime:'invalid'}).status,'error');
   b.sheets.get('Settings').rows=[['Key','Value']];assert.equal(b.get({action:'status'}).state,'LOCKED');assert.equal(start(b).status,'error');
  });

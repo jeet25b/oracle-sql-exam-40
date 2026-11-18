@@ -1,0 +1,21 @@
+FIX: INVALID POST ACTION / EXAM SERVER NEEDS AN UPDATE
+
+The existing /exec URL still serves the OLD backend. Saving code alone does not change a versioned deployment.
+
+1. Open the faculty Google Sheet used by this exam > Extensions > Apps Script.
+2. Replace Code.gs with the local Code.gs from this folder.
+3. Add a script file named QuestionBank, and paste the local QuestionBank.gs into it.
+4. In Project Settings > Script properties add ADMIN_PASSKEY with your private faculty password.
+5. In the linked spreadsheet create Students with columns:
+   Roll Number | Student Name | Access Code
+   Add each student and their private code. Store roll numbers/codes as plain text.
+   The student access code is separate from the faculty password.
+6. Save. Deploy > Manage deployments > select the EXISTING Web app deployment > Edit (pencil).
+7. Select Version: New version. Execute as: Me. Access: Anyone. Click Deploy and authorize if requested.
+8. Keep the SAME deployment URL already configured in exam.js and teacher.html.
+   If a different URL is issued, replace SCRIPT_URL in BOTH files before publishing.
+9. Open the deployment URL with ?action=status. The JSON must include "apiVersion":3.
+10. Publish index.html, exam.css, exam.js and teacher.html together, then reload the exam page.
+
+Keep Code.gs, QuestionBank.gs and student records private. Only publish the four website assets.
+See README.txt for the full rollout and existing-Results migration instructions.

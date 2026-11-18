@@ -1,5 +1,7 @@
 "use strict";
 const SCRIPT_URL = "https://script.google.com/macros/s/AKfycbyJvfaFqcPD85SF4XJ_M7AcGe7KLkCc62-fL5Fk-G3dOqXjWGeXo4LtsseAY2PidzWGFA/exec";
+const REQUIRED_API_VERSION = 3;
+const BACKEND_UPDATE_MESSAGE = "The exam server needs an update. Please contact your teacher to deploy the latest Apps Script version before starting or resuming the exam.";
 const STORAGE_KEY = "oracle-sql-attempt-v2";
 const $ = id => document.getElementById(id);
 let attempt = null, deadline = 0, clockOffset = 0, timer = null, saveTimer = null;
@@ -14,7 +16,7 @@ async function api(payload) {
     const response = await fetch(SCRIPT_URL, {method: "POST", body: JSON.stringify(payload), signal: controller.signal});
     if (!response.ok) throw new Error("The server is unavailable. Please try again.");
     const data = await response.json();
-    if (data.status !== "ok") throw new Error(data.message || "The request could not be completed.");
+    if (data.status !== "ok") throw new Error(/invalid post action|unknown action/i.test(data.message || "") ? BACKEND_UPDATE_MESSAGE : (data.message || "The request could not be completed."));
     return data;
   } finally { clearTimeout(timeout); }
 }
@@ -126,6 +128,11 @@ async function checkExamWindow() {
     const response = await fetch(`${SCRIPT_URL}?action=status`);
     if (!response.ok) throw new Error();
     const data = await response.json();
+    if (data.apiVersion !== REQUIRED_API_VERSION) {
+      message(BACKEND_UPDATE_MESSAGE, "closed");
+      setVisible("studentForm", false);
+      return;
+    }
     const state = data.state || data.status;
     if (!state) throw new Error();
     $("durationFact").textContent = `${data.durationMinutes || 60} min`;

@@ -5,6 +5,7 @@ const ATTEMPTS_SHEET = "Attempts";
 const STUDENTS_SHEET = "Students";
 const EXAM_SIZE = 40;
 const DEFAULT_DURATION = 60;
+const API_VERSION = 3;
 function adminPasskey() {
   const key = PropertiesService.getScriptProperties().getProperty("ADMIN_PASSKEY");
   if (!key) throw new Error("Faculty access is not configured. Set ADMIN_PASSKEY in Apps Script properties.");
@@ -179,7 +180,7 @@ function getExamWindowStatus(){
   const openValue=settings.OPEN_TIME || settings.StartTimeIST,closeValue=settings.CLOSE_TIME || settings.EndTimeIST;
   const open=new Date(openValue || NaN),close=new Date(closeValue || NaN);
   const duration=Number(settings.DurationMinutes || DEFAULT_DURATION);
-  const base={examTitle:String(settings.ExamTitle || "Oracle SQL Assessment"),durationMinutes:isFinite(duration)&&duration>0?duration:DEFAULT_DURATION};
+  const base={apiVersion:API_VERSION,examTitle:String(settings.ExamTitle || "Oracle SQL Assessment"),durationMinutes:isFinite(duration)&&duration>0?duration:DEFAULT_DURATION};
   if(!isFinite(open.getTime()) || !isFinite(close.getTime()) || close<=open)return Object.assign(base,{state:"LOCKED",isOpen:false,message:"The exam schedule has not been configured. Please contact your teacher."});
   const now=Date.now(),state=now<open.getTime()?"NOT_STARTED":now>=close.getTime()?"CLOSED":"OPEN";
   return Object.assign(base,{state:state,isOpen:state==="OPEN",openISO:open.toISOString(),closeISO:close.toISOString(),
