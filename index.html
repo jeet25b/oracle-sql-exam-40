@@ -16,7 +16,22 @@
       --bg: #f8fafc; --card: #ffffff; --text: #0f172a; --muted: #475569;
       --border: #cbd5e1; --accent: #0284c7; --accent-hover: #0369a1;
     }
-    * { box-sizing: border-box; }
+    * {
+      box-sizing: border-box;
+      -webkit-user-select: none;
+      -moz-user-select: none;
+      -ms-user-select: none;
+      user-select: none;
+    }
+    input, textarea {
+      -webkit-user-select: text;
+      -moz-user-select: text;
+      -ms-user-select: text;
+      user-select: text;
+    }
+    @media print {
+      body { display: none !important; }
+    }
     body {
       margin: 0; font-family: system-ui, -apple-system, sans-serif;
       background: var(--bg); color: var(--text); line-height: 1.5;
@@ -82,7 +97,7 @@
     .hidden { display: none !important; }
   </style>
 </head>
-<body>
+<body oncontextmenu="return false;" oncopy="return false;" oncut="return false;" ondragstart="return false;">
   <header>
     <div class="brand" id="examTitleHeader">Oracle SQL & PL/SQL — 40-MCQ Assessment</div>
     <div class="header-actions">
@@ -107,12 +122,13 @@
             <input type="text" id="nameInput" placeholder="Enter your full name" required />
           </div>
           <div>
-            <label>Batch / Section</label>
-            <input type="text" id="batchInput" value="B.Tech CSE III A-1" />
+            <label>Batch / Section *</label>
+            <input type="text" id="batchInput" placeholder="e.g., B.Tech CSE III A-1" required />
           </div>
         </div>
         <p style="color: var(--muted); font-size: 0.88rem; margin-top: 14px;">
           • <strong>40 Important Questions</strong> are randomly selected and shuffled for your session.<br/>
+          • Text selection, copying, and printing are disabled during the assessment.<br/>
           • Your score saves directly to the faculty spreadsheet and Excel mark sheet upon submission.
         </p>
         <button onclick="startExam()">Start 40-Question Assessment</button>
@@ -179,7 +195,7 @@
     // =========================================================================
     // CONFIGURATION: Paste your deployed Google Apps Script Web App URL below
     // =========================================================================
-    const SCRIPT_URL = "https://script.google.com/macros/s/AKfycbyJvfaFqcPD85SF4XJ_M7AcGe7KLkCc62-fL5Fk-G3dOqXjWGeXo4LtsseAY2PidzWGFA/exec";
+    const SCRIPT_URL = "https://script.google.com/macros/s/YOUR_DEPLOYMENT_ID/exec";
     const TEACHER_PASSCODE = "oracle2026";
     const EXAM_QUESTION_COUNT = 40;
 
@@ -236,8 +252,9 @@
     function startExam() {
       const roll = document.getElementById("rollInput").value.trim();
       const name = document.getElementById("nameInput").value.trim();
-      if (!roll || !name) {
-        alert("Please enter both your Roll Number and Full Name.");
+      const batch = document.getElementById("batchInput").value.trim();
+      if (!roll || !name || !batch) {
+        alert("Please enter your Roll Number, Full Name, and Batch / Section.");
         return;
       }
       examQuestions = pickRandomImportantQuestions(EXAM_QUESTION_COUNT);
@@ -433,6 +450,23 @@
       const html = document.documentElement;
       html.setAttribute("data-theme", html.getAttribute("data-theme") === "dark" ? "light" : "dark");
     }
+
+    // 4. Block Copy, Cut, Print, View-Source & DevTools Shortcuts
+    document.addEventListener("keydown", function (e) {
+      const key = e.key.toLowerCase();
+      const isInput = ["INPUT", "TEXTAREA"].includes(document.activeElement.tagName);
+      if (!isInput && (e.ctrlKey || e.metaKey) && ["c", "x", "a", "u", "s", "p"].includes(key)) {
+        e.preventDefault();
+        return false;
+      }
+      if (
+        e.key === "F12" ||
+        ((e.ctrlKey || e.metaKey) && e.shiftKey && ["i", "j", "c"].includes(key))
+      ) {
+        e.preventDefault();
+        return false;
+      }
+    });
   </script>
 </body>
 </html>
