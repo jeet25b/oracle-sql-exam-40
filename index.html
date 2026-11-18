@@ -103,7 +103,6 @@
     <div class="header-actions">
       <span id="timerDisplay" class="timer-pill hidden">60:00</span>
       <button class="secondary" onclick="toggleTheme()">Theme</button>
-      <button class="secondary" onclick="openTeacherModal()">Teacher Results</button>
     </div>
   </header>
 
@@ -165,30 +164,6 @@
       <button class="secondary" onclick="downloadPersonalReceipt()">Download My Score Receipt (.xlsx)</button>
     </div>
 
-    <!-- 4. TEACHER DASHBOARD & EXCEL EXPORT -->
-    <div id="teacherView" class="card hidden">
-      <div style="display:flex; justify-content:space-between; align-items:center; flex-wrap:wrap; gap:10px;">
-        <h3 style="margin:0;">Faculty Results & Excel Export</h3>
-        <div style="display:flex; gap:10px;">
-          <button class="secondary" onclick="loadTeacherResults()">Refresh Data</button>
-          <button class="success" onclick="exportAllResultsToExcel()">Export All to Excel (.xlsx)</button>
-          <button class="danger" onclick="closeTeacherModal()">Close</button>
-        </div>
-      </div>
-      <div class="table-wrap">
-        <table id="resultsTable">
-          <thead>
-            <tr>
-              <th>Timestamp</th><th>RollNumber</th><th>StudentName</th><th>Batch</th>
-              <th>Score</th><th>TotalQuestions</th><th>Percentage</th><th>TimeTakenSec</th><th>TabSwitches</th>
-            </tr>
-          </thead>
-          <tbody id="resultsBody">
-            <tr><td colspan="9">Enter faculty passcode to load results.</td></tr>
-          </tbody>
-        </table>
-      </div>
-    </div>
   </div>
 
   <script>
@@ -196,7 +171,6 @@
     // CONFIGURATION: Paste your deployed Google Apps Script Web App URL below
     // =========================================================================
     const SCRIPT_URL = "https://script.google.com/macros/s/AKfycbyJvfaFqcPD85SF4XJ_M7AcGe7KLkCc62-fL5Fk-G3dOqXjWGeXo4LtsseAY2PidzWGFA/exec";
-    const TEACHER_PASSCODE = "oracle2026";
     const EXAM_QUESTION_COUNT = 40;
 
     let examQuestions = [];
@@ -215,22 +189,31 @@
     async function checkExamWindow() {
       const banner = document.getElementById("accessBanner");
       const form = document.getElementById("studentForm");
+      form.classList.add("hidden");
       try {
         const res = await fetch(`${SCRIPT_URL}?action=status`);
+        if (!res.ok) throw new Error("Schedule request failed");
         const data = await res.json();
         if (data.examTitle) document.getElementById("examTitleHeader").textContent = data.examTitle;
 
-        if (data.status === "OPEN") {
+        const state = data.state || data.status;
+        if (state === "OPEN") {
           durationSeconds = (data.durationMinutes || 60) * 60;
           banner.className = "status-banner open";
           banner.innerHTML = `<strong>Exam Window is OPEN.</strong> Duration: ${data.durationMinutes || 60} mins. Enter your details below to begin.`;
           form.classList.remove("hidden");
-        } else if (data.status === "LOCKED") {
+        } else if (state === "LOCKED" || state === "NOT_STARTED") {
           banner.className = "status-banner";
-          banner.innerHTML = `<strong>Exam Locked:</strong> ${data.message}`;
-        } else {
+          banner.textContent = data.message || (data.openFormatted
+            ? `Exam has not started. Opens: ${data.openFormatted}.`
+            : "Exam has not started. Please check with your teacher for the schedule.");
+        } else if (state === "CLOSED") {
           banner.className = "status-banner closed";
-          banner.innerHTML = `<strong>Exam Closed:</strong> ${data.message}`;
+          banner.textContent = data.message || (data.closeFormatted
+            ? `Exam Closed: The exam window ended at ${data.closeFormatted}.`
+            : "Exam Closed: The exam window has ended.");
+        } else {
+          throw new Error("Unexpected schedule response");
         }
       } catch (err) {
         banner.className = "status-banner closed";
@@ -366,6 +349,7 @@
 
       const timeTakenSec = Math.round((Date.now() - startTimeEpoch) / 1000);
       const record = {
+        action: "submit",
         rollNumber: document.getElementById("rollInput").value.trim().toUpperCase(),
         studentName: document.getElementById("nameInput").value.trim(),
         batch: document.getElementById("batchInput").value.trim(),
@@ -374,6 +358,17 @@
         timeTakenSec: timeTakenSec,
         tabSwitches: tabSwitches
       };
+      record.rollNo = record.rollNumber;
+      record.name = record.studentName;
+      record.questionMarks = examQuestions.map(q => userAnswers[q.id] === q.ans ? 1 : 0);
+      record.correctCount = score;
+      record.unattemptedCount = examQuestions.filter(q => userAnswers[q.id] === undefined).length;
+      record.wrongCount = examQuestions.length - score - record.unattemptedCount;
+      record.details = examQuestions.map((q, idx) => ({
+        qNo: idx + 1, questionId: q.id, selected: userAnswers[q.id] ?? "NA",
+        correct: q.ans, mark: record.questionMarks[idx],
+        status: userAnswers[q.id] === undefined ? "unattempted" : (record.questionMarks[idx] ? "correct" : "wrong")
+      }));
       lastSubmissionRecord = record;
 
       document.getElementById("examView").classList.add("hidden");
@@ -388,9 +383,16 @@
           method: "POST",
           body: JSON.stringify(record)
         });
+        if (!res.ok) throw new Error("Submission request failed");
         const data = await res.json();
+        if (data.status !== "ok") {
+          document.querySelector("#resultView h2").textContent = "Submission Not Saved";
+          summary.textContent = data.message || "The server could not save your submission. Download your score receipt below.";
+          return;
+        }
         summary.innerHTML = `<strong>${data.message}</strong><br/>Roll Number: ${record.rollNumber} | Score: <strong>${score} / ${examQuestions.length}</strong>`;
       } catch (err) {
+        document.querySelector("#resultView h2").textContent = "Submission Not Saved";
         summary.innerHTML = `Score: <strong>${score} / ${examQuestions.length}</strong>. (Offline fallback: download your Excel receipt below.)`;
       }
     }
@@ -402,48 +404,6 @@
       const wb = XLSX.utils.book_new();
       XLSX.utils.book_append_sheet(wb, ws, "Student_Score");
       XLSX.writeFile(wb, `${lastSubmissionRecord.rollNumber}_Oracle_SQL_Score.xlsx`);
-    }
-
-    function openTeacherModal() {
-      const code = prompt("Enter Faculty Passcode:");
-      if (code !== TEACHER_PASSCODE) {
-        alert("Invalid passcode.");
-        return;
-      }
-      document.getElementById("teacherView").classList.remove("hidden");
-      loadTeacherResults();
-    }
-
-    function closeTeacherModal() {
-      document.getElementById("teacherView").classList.add("hidden");
-    }
-
-    async function loadTeacherResults() {
-      const tbody = document.getElementById("resultsBody");
-      tbody.innerHTML = `<tr><td colspan="9">Loading records from Google Sheet...</td></tr>`;
-      try {
-        const res = await fetch(`${SCRIPT_URL}?action=results`);
-        const data = await res.json();
-        if (!data.results || data.results.length === 0) {
-          tbody.innerHTML = `<tr><td colspan="9">No submissions recorded yet.</td></tr>`;
-          return;
-        }
-        tbody.innerHTML = data.results.map(r => `
-          <tr>
-            <td>${r.Timestamp || ""}</td><td>${r.RollNumber || ""}</td><td>${r.StudentName || ""}</td>
-            <td>${r.Batch || ""}</td><td>${r.Score ?? ""}</td><td>${r.TotalQuestions ?? ""}</td>
-            <td>${r.Percentage || ""}</td><td>${r.TimeTakenSec ?? ""}</td><td>${r.TabSwitches ?? ""}</td>
-          </tr>
-        `).join("");
-      } catch (err) {
-        tbody.innerHTML = `<tr><td colspan="9">Failed to load results. Check SCRIPT_URL.</td></tr>`;
-      }
-    }
-
-    function exportAllResultsToExcel() {
-      const table = document.getElementById("resultsTable");
-      const wb = XLSX.utils.table_to_book(table, { sheet: "Exam_Results" });
-      XLSX.writeFile(wb, `Oracle_SQL_40MCQ_Results_${new Date().toISOString().slice(0,10)}.xlsx`);
     }
 
     function toggleTheme() {
