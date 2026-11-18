@@ -337,19 +337,15 @@ function showResults() {
     setVisible("retryBtn", false);
   }
   $("resultHeading").setAttribute("tabindex", "-1"); $("resultHeading").focus();
-  $("receiptBtn").textContent = finalized ? "Download score receipt (.csv)" : "Download pending attempt (.json)";
+  setVisible("receiptBtn", finalized && !!result);
+  $("receiptBtn").textContent = "Download score receipt (.csv)";
 }
 function downloadReceipt() {
-  if (!attempt) return;
+  if (!attempt || !finalized || !result) return;
   let blob, suffix;
-  if (!finalized) {
-    // Access tokens are deliberately excluded from the downloadable copy.
-    blob = new Blob([JSON.stringify({rollNo:attempt.roll,name:attempt.name,batch:attempt.batch,questions:attempt.questions,answers:attempt.answers,submissionStatus:"PENDING"},null,2)],{type:"application/json"}); suffix="pending.json";
-  } else {
     const escape = v => '"' + String(/^[=+@\-\t\r]/.test(String(v)) ? "'" + v : v).replace(/"/g,'""') + '"';
     const lines = [["Roll number","Name","Course-Branch-Sem-Batch-Group","Score","Total","Percentage","Correct","Incorrect","Unanswered","Status"],[attempt.roll,attempt.name,attempt.batch,result.score,result.totalQuestions,result.percentage,result.correctCount,result.wrongCount,result.unattemptedCount,"CONFIRMED"],["Question","Status","Selected option"],...result.details.map(d=>[d.qNo,d.status,Number.isInteger(d.selected)?String.fromCharCode(65+d.selected):"Unanswered"])];
     blob = new Blob(["\ufeff" + lines.map(r=>r.map(escape).join(",")).join("\r\n")],{type:"text/csv;charset=utf-8"}); suffix="score.csv";
-  }
   const url=URL.createObjectURL(blob),a=document.createElement("a");a.href=url;a.download=`${attempt.roll.replace(/[^A-Za-z0-9_-]/g,"_")}_Oracle_SQL_${suffix}`;a.click();setTimeout(()=>URL.revokeObjectURL(url),1000);
 }
 document.addEventListener("DOMContentLoaded", initialize);

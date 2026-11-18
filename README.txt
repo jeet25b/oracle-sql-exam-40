@@ -72,7 +72,8 @@ Local changes do not update the live GitHub Pages site or the existing Apps Scri
    If the browser is closed at timeout, reconnecting finalizes the saved attempt; no background job is installed.
    Retry submission returns the same result if the server saved it but the response was lost.
    Browser storage is best-effort and may be unavailable in private/restricted modes; keep the page open.
-   Receipts export as CSV (Excel compatible), with JSON backup for unconfirmed submissions.
+   Receipts export as CSV (Excel compatible) only after confirmed submission.
+   Pending attempts stay saved internally; students cannot download a pending JSON file.
    Only correctness is released after submission; detailed answer keys/solutions are not sent to the browser.
    Clear site storage on shared devices after downloading the receipt; do not share session tokens.
 
