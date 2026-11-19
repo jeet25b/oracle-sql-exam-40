@@ -73,12 +73,36 @@ function applyTheme(theme) {
   $("themeBtn").textContent = theme === "dark" ? "Light mode" : "Dark mode";
   $("themeBtn").setAttribute("aria-label", `Switch to ${theme === "dark" ? "light" : "dark"} theme`);
 }
+async function enterFullscreen() {
+  if (document.fullscreenElement) return true;
+  if (!document.documentElement.requestFullscreen) {
+    $("fullscreenBtn").textContent = "Use browser full screen";
+    $("fullscreenBtn").title = "Use your browser's full-screen control (F11 on Windows).";
+    return false;
+  }
+  try {
+    await document.documentElement.requestFullscreen({navigationUI:"hide"});
+    return true;
+  } catch (_) {
+    $("fullscreenBtn").textContent = "Enter full screen";
+    $("fullscreenBtn").title = "Allow full screen in your browser, then select this button. On Windows you can also use F11.";
+    return false;
+  }
+}
+function updateFullscreenButton() {
+  const active = !!document.fullscreenElement;
+  $("fullscreenBtn").textContent = active ? "Full screen active" : "Full screen";
+  $("fullscreenBtn").disabled = active;
+}
 async function initialize() {
   try { applyTheme(localStorage.getItem("oracle-theme") || "light"); recovery = JSON.parse(localStorage.getItem(STORAGE_KEY) || "null"); } catch (_) {}
   $("themeBtn").onclick = () => {
     const theme = document.documentElement.dataset.theme === "dark" ? "light" : "dark";
     applyTheme(theme); try { localStorage.setItem("oracle-theme", theme); } catch (_) {}
   };
+  $("fullscreenBtn").onclick = enterFullscreen;
+  document.addEventListener("fullscreenchange", updateFullscreenButton);
+  updateFullscreenButton();
   $("studentForm").onsubmit = startExam;
   $("prevBtn").onclick = () => navigate(-1);
   $("nextBtn").onclick = () => navigate(1);
@@ -168,8 +192,12 @@ async function startExam(e) {
   const roll = $("rollInput").value.trim().toUpperCase();
   const name = $("nameInput").value.trim();
   const batch = ["courseInput", "branchInput", "semInput", "batchInput", "groupInput"].map(id => $(id).value.trim()).join("-");
-  sending = true; $("startBtn").disabled = true; $("startBtn").textContent = "Preparing your assessment…";
+  sending = true;
+  // Request before the API call, while the Start click still grants user activation.
+  const fullscreenRequest = enterFullscreen();
+  $("startBtn").disabled = true; $("startBtn").textContent = "Preparing your assessment…";
   try {
+    await fullscreenRequest;
     const previous = recovery && recovery.attempt && recovery.attempt.roll === roll ? recovery : null;
     const data = await api({action: "startAttempt", rollNo: roll, name, batch, accessCode: $("accessCode").value, token: previous ? previous.attempt.token : ""});
     $("accessCode").value = "";

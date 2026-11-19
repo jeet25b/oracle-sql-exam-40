@@ -61,6 +61,15 @@ test('startup password prompt blur does not lock question; tab departure still l
  assert.equal(vm.runInContext('attempt.lockedQuestions.includes(1)',ctx),true);
  assert.equal(vm.runInContext('attempt.tabSwitches',ctx),1);
 });
+test('fullscreen requests hide browser controls and denial leaves a retry available',async()=>{
+ const {ctx,elements}=ui();let options;
+ ctx.document.documentElement.requestFullscreen=async value=>{options=value};
+ assert.equal(await vm.runInContext('enterFullscreen()',ctx),true);assert.equal(options.navigationUI,'hide');
+ ctx.document.documentElement.requestFullscreen=async()=>{throw Error('Denied')};
+ assert.equal(await vm.runInContext('enterFullscreen()',ctx),false);assert.equal(elements.fullscreenBtn.textContent,'Enter full screen');
+ ctx.document.fullscreenElement={};vm.runInContext('updateFullscreenButton()',ctx);assert.equal(elements.fullscreenBtn.disabled,true);
+ ctx.document.fullscreenElement=null;vm.runInContext('updateFullscreenButton()',ctx);assert.equal(elements.fullscreenBtn.disabled,false);
+});
 test('blank question remains blank when locked and submitted exams do not acquire new locks',()=>{
  const {ctx}=ui();vm.runInContext('deadline=Date.now()+600000;currentIdx=0;attempt.currentIdx=2;syncProgress=async()=>{};lockCurrentQuestion();',ctx);
  assert.equal(vm.runInContext('attempt.answers[3]',ctx),undefined);assert.equal(vm.runInContext('questionBlocked()',ctx),true);
