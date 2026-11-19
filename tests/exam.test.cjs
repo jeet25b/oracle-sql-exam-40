@@ -95,6 +95,10 @@ test('next student clears only the completed local attempt and preserves prefere
  assert(!local.has('oracle-sql-attempt-v2'));assert.equal(local.get('oracle-theme'),'dark');assert.equal(reloads,1);
  assert.equal(vm.runInContext('attempt',ctx),null);vm.runInContext('localSave()',ctx);assert(!local.has('oracle-sql-attempt-v2'));
 });
+test('final submission check includes locked questions',()=>{
+ const {ctx,elements}=ui();vm.runInContext('deadline=Date.now()+600000;attempt.lockedQuestions=[1,3];confirmSubmit()',ctx);
+ assert(elements.confirmCounts.textContent.includes('Locked questions: 2'));assert.equal(elements.submitDialog.open,true);
+});
 test('blank question remains blank when locked and submitted exams do not acquire new locks',()=>{
  const {ctx}=ui();vm.runInContext('deadline=Date.now()+600000;currentIdx=0;attempt.currentIdx=2;syncProgress=async()=>{};lockCurrentQuestion();',ctx);
  assert.equal(vm.runInContext('attempt.answers[3]',ctx),undefined);assert.equal(vm.runInContext('questionBlocked()',ctx),true);

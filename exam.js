@@ -350,7 +350,7 @@ function updatePalette() {
 function confirmSubmit() {
   if (blocked()) return;
   const c = counts();
-  $("confirmCounts").textContent = `Answered: ${c.answered} / ${attempt.questions.length}\nUnanswered: ${c.unanswered}\nFlagged for review: ${c.flagged}`;
+  $("confirmCounts").textContent = `Answered: ${c.answered} / ${attempt.questions.length}\nUnanswered: ${c.unanswered}\nFlagged for review: ${c.flagged}\nLocked questions: ${new Set(attempt.lockedQuestions || []).size}`;
   $("submitDialog").returnValue = "";
   $("submitDialog").showModal();
 }
