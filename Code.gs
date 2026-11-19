@@ -76,6 +76,8 @@ function doPost(e) {
       if((attempt.lockedQuestions || []).includes(question.id))throw new Error("This question is locked.");
       updateAnswers(attempt,data);
       if(!Number.isInteger(attempt.answers[question.id]))throw new Error("Select an answer first.");
+      attempt.feedback=attempt.feedback || {};
+      attempt.feedback[question.id]={correct:question.ans,selected:attempt.answers[question.id]};
       writeAttempt(stored.row,attempt);
       return jsonResponse({status:"ok",questionId:question.id,correctOption:question.ans,selectedOption:attempt.answers[question.id]});
     }
@@ -126,7 +128,7 @@ function startAttempt(data, roll) {
   if(!name || name.length>120 || !batch || batch.length>180) throw new Error("Complete your name and academic details.");
   const attempt={roll:roll,name:name,batch:batch,token:Utilities.getUuid(),startedAt:now,
     deadline:Math.min(now+win.durationMinutes*60000,new Date(win.closeISO).getTime()),
-    updatedAt:now,questions:balanceAnswerPositions(pool.slice(0,EXAM_SIZE)),answers:{},flags:[],lockedQuestions:[],currentIdx:0,tabSwitches:0,focusLosses:0,result:null};
+    updatedAt:now,questions:balanceAnswerPositions(pool.slice(0,EXAM_SIZE)),answers:{},flags:[],lockedQuestions:[],seenQuestions:[],feedback:{},currentIdx:0,tabSwitches:0,focusLosses:0,result:null};
   const sheet=attemptSheet();sheet.appendRow([roll,attempt.token,JSON.stringify(attempt)]);SpreadsheetApp.flush();
   return {status:"ok",attempt:publicAttempt(attempt),serverNow:now};
 }
@@ -146,7 +148,7 @@ function balanceAnswerPositions(questions){
 function publicAttempt(attempt){
   return {roll:attempt.roll,name:attempt.name,batch:attempt.batch,token:attempt.token,startedAt:attempt.startedAt,deadline:attempt.deadline,updatedAt:attempt.updatedAt || attempt.startedAt,
     questions:attempt.questions.map(q=>({id:q.id,topic:q.topic,q:q.q,options:q.options})),
-    answers:attempt.answers,flags:attempt.flags,lockedQuestions:attempt.lockedQuestions || [],currentIdx:attempt.currentIdx,tabSwitches:attempt.tabSwitches,focusLosses:attempt.focusLosses || 0};
+    answers:attempt.answers,flags:attempt.flags,seenQuestions:attempt.seenQuestions || [],feedback:attempt.feedback || {},lockedQuestions:attempt.lockedQuestions || [],currentIdx:attempt.currentIdx,tabSwitches:attempt.tabSwitches,focusLosses:attempt.focusLosses || 0};
 }
 function attemptSheet(){
   const ss=SpreadsheetApp.getActiveSpreadsheet();let sheet=ss.getSheetByName(ATTEMPTS_SHEET);
@@ -170,9 +172,11 @@ function updateAnswers(attempt,data){
     if(selected!==undefined){if(!Number.isInteger(selected) || selected<0 || selected>=q.options.length)throw new Error("Invalid answer option.");clean[q.id]=selected;}
   });
   const ids=attempt.questions.map(q=>q.id);
+  attempt.seenQuestions=[...new Set([...(attempt.seenQuestions || []), ...(Array.isArray(data.seenQuestions)?data.seenQuestions:[])])].filter(id=>ids.includes(id));
+  const lostFocus=Number(data.tabSwitches)>(attempt.tabSwitches || 0) || Number(data.focusLosses)>(attempt.focusLosses || 0);
   attempt.updatedAt=Date.now();
   attempt.answers=clean;
-  attempt.lockedQuestions=[...new Set([...(attempt.lockedQuestions || []), ...(Array.isArray(data.lockedQuestions)?data.lockedQuestions:[])])].filter(id=>ids.includes(id));
+  attempt.lockedQuestions=[...new Set([...(attempt.lockedQuestions || []), ...(Array.isArray(data.lockedQuestions)?data.lockedQuestions:[]), ...(lostFocus?attempt.seenQuestions:[])])].filter(id=>ids.includes(id));
   attempt.flags=Array.isArray(data.flags)?[...new Set(data.flags)].filter(id=>ids.includes(id)):[];
   attempt.currentIdx=Number.isInteger(data.currentIdx)?Math.max(0,Math.min(ids.length-1,data.currentIdx)):0;
   attempt.focusLosses=Math.max(attempt.focusLosses || 0,Math.max(0,Math.floor(Number(data.focusLosses)||0)));

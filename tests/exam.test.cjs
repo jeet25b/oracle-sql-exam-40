@@ -30,7 +30,7 @@ test('device recovery excludes access codes and retains pending submission',()=>
 test('timer uses deadline rather than interval count and warns near expiry',()=>{
  const {ctx,elements}=ui();vm.runInContext('deadline=Date.now()+119000;tick()',ctx);assert.match(elements.timerDisplay.textContent,/01:5[89]/);assert(elements.timeWarning.textContent.includes('2 minutes'));
 });
-test('tab changes and window blur permanently lock only the current question and retain its answer',async()=>{
+test('tab changes and window blur retain answers and lock viewed questions',async()=>{
  const {ctx,elements,local,windowEvents,documentEvents}=ui();
  await vm.runInContext('initialize()',ctx);
  vm.runInContext('deadline=Date.now()+600000;focusMonitoringArmed=true;syncProgress=async()=>{};',ctx);
@@ -119,6 +119,12 @@ test('Submit Question advances without delay and submitted feedback remains on P
  // A changed answer clears old feedback until submitted again.
  elements.optionsContainer.children[1].children[0].onchange();
  assert(elements.optionsContainer.children.every(label=>label.applied.length===0));
+});
+test('focus loss after revisiting locks every seen question, leaving unseen questions editable',()=>{
+ const {ctx}=ui();vm.runInContext('deadline=Date.now()+600000;syncProgress=async()=>{};renderQuestion();navigate(1);navigate(-1);recordFocusEvent("focus");',ctx);
+ assert.deepEqual(JSON.parse(vm.runInContext('JSON.stringify(attempt.lockedQuestions)',ctx)),[1,2]);
+ vm.runInContext('navigate(1)',ctx);assert.equal(vm.runInContext('questionBlocked()',ctx),true);
+ vm.runInContext('navigate(1)',ctx);assert.equal(vm.runInContext('questionBlocked()',ctx),false);
 });
 test('blank question remains blank when locked and submitted exams do not acquire new locks',()=>{
  const {ctx}=ui();vm.runInContext('deadline=Date.now()+600000;currentIdx=0;attempt.currentIdx=2;syncProgress=async()=>{};lockCurrentQuestion();',ctx);
@@ -258,6 +264,14 @@ if(!process.argv.includes('--frontend-only')){
   const response=b.post({action:'submitQuestion',rollNo:a.roll,token:a.token,questionId:q.id,answers:{[q.id]:0}});
   assert.equal(response.status,'ok');assert.equal(response.correctOption,stored.questions[0].ans);assert.equal(response.selectedOption,0);
   assert.equal(JSON.parse(b.sheets.get('Attempts').rows[1][2]).answers[q.id],0);
+ });
+
+ test('server persists submitted feedback and locks all previously viewed questions on focus loss',()=>{
+  const b=createBackend(),a=start(b).attempt,one=a.questions[0].id,two=a.questions[1].id,unseen=a.questions[2].id;
+  b.post({action:'submitQuestion',rollNo:a.roll,token:a.token,questionId:one,answers:{[one]:0},seenQuestions:[one]});
+  const res=b.post({action:'saveAttempt',rollNo:a.roll,token:a.token,answers:{[one]:0},seenQuestions:[two],focusLosses:1});assert.equal(res.status,'ok');
+  const recovered=start(b).attempt;assert(recovered.lockedQuestions.includes(one));assert(recovered.lockedQuestions.includes(two));assert(!recovered.lockedQuestions.includes(unseen));
+  assert.equal(recovered.feedback[one].selected,0);assert(Number.isInteger(recovered.feedback[one].correct));
  });
 
 }

@@ -116,3 +116,10 @@ BALANCED ANSWER POSITIONS
    The position schedule and distractors are shuffled; the server stores the remapped key.
    Existing attempts keep their original option order and answer keys on resume.
    Redeploy Code.gs to enable this rule for newly started attempts.
+
+VIEWED-QUESTION LOCKING AND REVIEW FEEDBACK
+   Tab changes or focus loss lock ALL questions viewed in that attempt, including submitted
+   questions. Unseen questions remain editable. Seen IDs and submitted feedback persist on
+   the backend and device. Existing attempts start tracking new viewed questions after update;
+   historical unsaved view history cannot be reconstructed. Publish index.html, exam.js and
+   exam.css together, and redeploy Code.gs for server persistence/enforcement.

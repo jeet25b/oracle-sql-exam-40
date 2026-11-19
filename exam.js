@@ -33,7 +33,7 @@ function localSave() {
   }
 }
 function snapshot() {
-  return {answers: {...attempt.answers}, flags: [...attempt.flags], currentIdx: attempt.currentIdx, tabSwitches: attempt.tabSwitches || 0, focusLosses: attempt.focusLosses || 0, lockedQuestions: [...(attempt.lockedQuestions || [])]};
+  return {answers: {...attempt.answers}, flags: [...attempt.flags], currentIdx: attempt.currentIdx, tabSwitches: attempt.tabSwitches || 0, focusLosses: attempt.focusLosses || 0, lockedQuestions: [...(attempt.lockedQuestions || [])], seenQuestions: [...(attempt.seenQuestions || [])]};
 }
 function changed() {
   revision++;
@@ -208,9 +208,10 @@ async function startExam(e) {
     focusMonitoringArmed = false; tabAway = false; focusAway = false;
     clockOffset = data.serverNow - Date.now();
     deadline = attempt.deadline;
+    attempt.seenQuestions = [...new Set([...(attempt.seenQuestions || []), ...(previous && previous.attempt.token === attempt.token ? previous.attempt.seenQuestions || [] : [])])];
     attempt.lockedQuestions = attempt.lockedQuestions || [];
     finalized = false;
-    if (previous && previous.attempt.token === attempt.token) attempt.feedback = previous.attempt.feedback || {};
+    if (previous && previous.attempt.token === attempt.token) attempt.feedback = {...(previous.attempt.feedback || {}), ...(attempt.feedback || {})};
     if (data.result) { acceptResult(data.result); return; }
     // Merge the newest unsynced device changes only for the identical server attempt.
     if (previous && previous.attempt.token === attempt.token && !previous.finalized && previous.savedAt > (attempt.updatedAt || 0)) {
@@ -280,10 +281,8 @@ function recordFocusEvent(kind) {
 }
 function lockCurrentQuestion() {
   if (blocked()) return;
-  const id = attempt.questions[attempt.currentIdx].id;
-  attempt.lockedQuestions = attempt.lockedQuestions || [];
-  if (attempt.lockedQuestions.includes(id)) return;
-  attempt.lockedQuestions.push(id);
+  const seen = new Set([...(attempt.seenQuestions || []), attempt.questions[attempt.currentIdx].id]);
+  attempt.lockedQuestions = [...new Set([...(attempt.lockedQuestions || []), ...seen])];
   changed(); renderQuestion(); syncProgress();
 }
 function tick() {
@@ -301,6 +300,7 @@ function tick() {
 }
 function renderQuestion(focus = false) {
   const q = attempt.questions[attempt.currentIdx];
+  attempt.seenQuestions = [...new Set([...(attempt.seenQuestions || []), q.id])];
   $("qCounter").textContent = `Question ${attempt.currentIdx + 1} of ${attempt.questions.length}`;
   $("qTopic").textContent = q.topic || "Oracle SQL"; $("qText").textContent = q.q;
   const options = $("optionsContainer"); options.replaceChildren();
