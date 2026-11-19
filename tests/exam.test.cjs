@@ -33,7 +33,7 @@ test('timer uses deadline rather than interval count and warns near expiry',()=>
 test('tab changes and window blur permanently lock only the current question and retain its answer',async()=>{
  const {ctx,elements,local,windowEvents,documentEvents}=ui();
  await vm.runInContext('initialize()',ctx);
- vm.runInContext('deadline=Date.now()+600000;syncProgress=async()=>{};',ctx);
+ vm.runInContext('deadline=Date.now()+600000;focusMonitoringArmed=true;syncProgress=async()=>{};',ctx);
  windowEvents.blur();
  assert.equal(vm.runInContext('attempt.lockedQuestions.includes(1)',ctx),true);
  assert.equal(vm.runInContext('attempt.answers[1]',ctx),0);
@@ -51,6 +51,15 @@ test('tab changes and window blur permanently lock only the current question and
  assert.equal(vm.runInContext('attempt.tabSwitches',ctx),2);assert.equal(vm.runInContext('attempt.focusLosses',ctx),2);
  windowEvents.blur();documentEvents.visibilitychange();assert.equal(vm.runInContext('attempt.focusLosses',ctx),2);
  const saved=JSON.parse(local.get('oracle-sql-attempt-v2'));assert.deepEqual(saved.attempt.lockedQuestions,[1,2]);
+});
+test('startup password prompt blur does not lock question; tab departure still locks immediately',async()=>{
+ const {ctx,windowEvents,documentEvents}=ui();await vm.runInContext('initialize()',ctx);
+ vm.runInContext('deadline=Date.now()+600000;syncProgress=async()=>{};',ctx);
+ windowEvents.blur();assert.equal(vm.runInContext('(attempt.lockedQuestions || []).length',ctx),0);
+ assert.equal(vm.runInContext('attempt.focusLosses || 0',ctx),0);
+ ctx.document.hidden=true;documentEvents.visibilitychange();
+ assert.equal(vm.runInContext('attempt.lockedQuestions.includes(1)',ctx),true);
+ assert.equal(vm.runInContext('attempt.tabSwitches',ctx),1);
 });
 test('blank question remains blank when locked and submitted exams do not acquire new locks',()=>{
  const {ctx}=ui();vm.runInContext('deadline=Date.now()+600000;currentIdx=0;attempt.currentIdx=2;syncProgress=async()=>{};lockCurrentQuestion();',ctx);

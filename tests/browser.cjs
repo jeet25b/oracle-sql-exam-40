@@ -20,7 +20,7 @@ assert.equal(await evaluate('document.querySelectorAll("input[type=radio]").leng
 await evaluate('document.querySelector("input[type=radio]").click();document.getElementById("flagBtn").click();document.getElementById("submitQuestionBtn").click()');
 await wait('document.getElementById("saveStatus").textContent.includes("online")');
 assert(await evaluate('document.querySelector(".pal-btn").classList.contains("answered")'));assert.equal(await evaluate('document.querySelectorAll(".incorrect").length'),0);
-await evaluate('window.dispatchEvent(new Event("blur"))');
+await send('Input.dispatchMouseEvent',{type:'mousePressed',x:500,y:400,button:'left',clickCount:1});await send('Input.dispatchMouseEvent',{type:'mouseReleased',x:500,y:400,button:'left',clickCount:1});await evaluate('window.dispatchEvent(new Event("blur"))');
 await wait('document.getElementById("submitQuestionBtn").textContent.includes("locked")');
 assert(await evaluate('[...document.querySelectorAll("input[type=radio]")].every(r=>r.disabled)'));
 assert(await evaluate('document.getElementById("clearBtn").disabled'));

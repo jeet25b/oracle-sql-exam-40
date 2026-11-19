@@ -6,7 +6,7 @@ const STORAGE_KEY = "oracle-sql-attempt-v2";
 const $ = id => document.getElementById(id);
 let attempt = null, deadline = 0, clockOffset = 0, timer = null, saveTimer = null;
 let sending = false, finalized = false, syncing = false, resave = false, revision = 0;
-let tabAway = false, focusAway = false;
+let tabAway = false, focusAway = false, focusMonitoringArmed = false;
 let needsSessionVerification = false;
 let result = null, submitPending = false, lastSync = 0, warningLevel = 0, recovery = null;
 function setVisible(id, visible) { $(id).classList.toggle("hidden", !visible); }
@@ -113,7 +113,14 @@ async function initialize() {
     if (document.hidden) recordFocusEvent("tab");
     else { tabAway = false; if (attempt && !finalized && !submitPending) { tick(); renderQuestion(); syncProgress(); } }
   });
-  window.addEventListener("blur", () => recordFocusEvent("focus"));
+  // Browser password bubbles can blur the page immediately after sign-in.
+  // Arm only on real student input inside the active exam, never programmatic focus.
+  const armFocusMonitoring = event => {
+    if (event.isTrusted && attempt && !finalized && !submitPending) focusMonitoringArmed = true;
+  };
+  $("examView").addEventListener("pointerdown", armFocusMonitoring);
+  $("examView").addEventListener("keydown", armFocusMonitoring);
+  window.addEventListener("blur", () => { if (focusMonitoringArmed) recordFocusEvent("focus"); });
   window.addEventListener("focus", () => {
     focusAway = false;
     if (attempt && !finalized && !submitPending) { tick(); renderQuestion(); syncProgress(); }
@@ -167,6 +174,7 @@ async function startExam(e) {
     const data = await api({action: "startAttempt", rollNo: roll, name, batch, accessCode: $("accessCode").value, token: previous ? previous.attempt.token : ""});
     $("accessCode").value = "";
     attempt = data.attempt;
+    focusMonitoringArmed = false; tabAway = false; focusAway = false;
     clockOffset = data.serverNow - Date.now();
     deadline = attempt.deadline;
     attempt.lockedQuestions = attempt.lockedQuestions || [];
