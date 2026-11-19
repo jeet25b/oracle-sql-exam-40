@@ -134,7 +134,6 @@ async function initialize() {
   $("sessionForm").onsubmit = recoverSession;
   $("cancelSessionBtn").onclick = () => $("sessionDialog").close();
   $("sessionDialog").addEventListener("close", () => { $("sessionCode").value = ""; });
-  $("receiptBtn").onclick = downloadReceipt;
   window.addEventListener("online", () => { if (submitPending) submitExam(); else syncProgress(); });
   window.addEventListener("offline", () => { if (attempt && !finalized) $("saveStatus").textContent = "Offline · progress retained on this device"; });
   document.addEventListener("visibilitychange", () => {
@@ -433,7 +432,7 @@ function showResults() {
   if (finalized && result) {
     $("resultHeading").textContent = "Assessment submitted successfully";
     $("resultSummary").textContent = `Your result has been recorded. Score: ${result.score} / ${result.totalQuestions} (${result.percentage}%).`;
-    const stats = [[`${result.percentage}%`, "Overall score", ""], [result.correctCount, "Correct", "correct"], [result.wrongCount, "Incorrect", "incorrect"], [result.unattemptedCount, "Unanswered", ""]];
+    const stats = [[`${result.percentage}%`, "Overall score", ""], [result.correctCount, "Correct", "correct"], [result.wrongCount, "Incorrect", "incorrect"], [result.unattemptedCount, "Unanswered", ""], [new Set(attempt.lockedQuestions || []).size, "Locked questions", "locked"]];
     for (const [value, label, cls] of stats) {
       const item = document.createElement("div"); item.className = "stat " + cls;
       const strong = document.createElement("strong"); strong.textContent = value;
@@ -442,15 +441,5 @@ function showResults() {
     setVisible("retryBtn", false);
   }
   $("resultHeading").setAttribute("tabindex", "-1"); $("resultHeading").focus();
-  setVisible("receiptBtn", finalized && !!result);
-  $("receiptBtn").textContent = "Download score receipt (.csv)";
-}
-function downloadReceipt() {
-  if (!attempt || !finalized || !result) return;
-  let blob, suffix;
-    const escape = v => '"' + String(/^[=+@\-\t\r]/.test(String(v)) ? "'" + v : v).replace(/"/g,'""') + '"';
-    const lines = [["Roll number","Name","Course-Branch-Sem-Batch-Group","Score","Total","Percentage","Correct","Incorrect","Unanswered","Status"],[attempt.roll,attempt.name,attempt.batch,result.score,result.totalQuestions,result.percentage,result.correctCount,result.wrongCount,result.unattemptedCount,"CONFIRMED"],["Question","Status","Selected option"],...result.details.map(d=>[d.qNo,d.status,Number.isInteger(d.selected)?String.fromCharCode(65+d.selected):"Unanswered"])];
-    blob = new Blob(["\ufeff" + lines.map(r=>r.map(escape).join(",")).join("\r\n")],{type:"text/csv;charset=utf-8"}); suffix="score.csv";
-  const url=URL.createObjectURL(blob),a=document.createElement("a");a.href=url;a.download=`${attempt.roll.replace(/[^A-Za-z0-9_-]/g,"_")}_Oracle_SQL_${suffix}`;a.click();setTimeout(()=>URL.revokeObjectURL(url),1000);
 }
 document.addEventListener("DOMContentLoaded", initialize);

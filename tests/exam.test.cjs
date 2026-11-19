@@ -81,6 +81,12 @@ test('fullscreen denial stops start before API reserves an attempt',async()=>{
  assert.equal(calls,0);assert(elements.accessBanner.textContent.includes('Full screen is required'));
  assert.equal(vm.runInContext('attempt',ctx),null);assert.equal(elements.startBtn.disabled,false);
 });
+test('result summary shows a separate locked-question count alongside marking totals',()=>{
+ const {ctx,elements}=ui();
+ vm.runInContext(`finalized=true;attempt.lockedQuestions=[1,3];result={percentage:0,score:0,totalQuestions:3,correctCount:0,wrongCount:1,unattemptedCount:2,details:[{status:'wrong'},{status:'unattempted'},{status:'unattempted'}]};showResults();`,ctx);
+ assert.equal(elements.resultStats.children.length,5);
+ const locked=elements.resultStats.children[4];assert.equal(locked.children[0].textContent,2);assert.equal(locked.children[1].textContent,'Locked questions');
+});
 test('blank question remains blank when locked and submitted exams do not acquire new locks',()=>{
  const {ctx}=ui();vm.runInContext('deadline=Date.now()+600000;currentIdx=0;attempt.currentIdx=2;syncProgress=async()=>{};lockCurrentQuestion();',ctx);
  assert.equal(vm.runInContext('attempt.answers[3]',ctx),undefined);assert.equal(vm.runInContext('questionBlocked()',ctx),true);
