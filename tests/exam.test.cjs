@@ -4,7 +4,7 @@ function ui(){
  const elements={},windowEvents={},documentEvents={};
  function element(){return {children:[],textContent:'',value:'',className:'',attributes:{},classList:{toggle(){},add(){},remove(){}},setAttribute(k,v){this.attributes[k]=v},getAttribute(k){return this.attributes[k]},removeAttribute(k){delete this.attributes[k]},replaceChildren(){this.children=[]},appendChild(e){this.children.push(e);return e},append(...e){this.children.push(...e)},addEventListener(){},focus(){},close(){this.open=false},showModal(){this.open=true}};}
  const document={documentElement:{dataset:{}},getElementById:id=>elements[id]??=(element()),createElement:()=>element(),addEventListener(name,handler){documentEvents[name]=handler}};
- const local=new Map();const ctx=vm.createContext({document,window:{addEventListener(name,handler){windowEvents[name]=handler}},navigator:{onLine:true},localStorage:{setItem:(k,v)=>local.set(k,v),getItem:k=>local.get(k)},setTimeout:()=>1,clearTimeout(){},setInterval:()=>1,clearInterval(){},AbortController,Date,Blob,URL,console});
+ const local=new Map();const ctx=vm.createContext({document,window:{addEventListener(name,handler){windowEvents[name]=handler}},navigator:{onLine:true},localStorage:{setItem:(k,v)=>local.set(k,v),getItem:k=>local.get(k),removeItem:k=>local.delete(k)},setTimeout:()=>1,clearTimeout(){},setInterval:()=>1,clearInterval(){},AbortController,Date,Blob,URL,console});
  vm.runInContext(js,ctx);vm.runInContext(`attempt={roll:'TEST001',name:'Alex',batch:'B.Tech-CSE-3-A-1',token:'token',questions:[{id:1,ans:0,options:['A','B']},{id:2,ans:1,options:['A','B']},{id:3,ans:0,options:['A','B']}],answers:{1:0,2:0},flags:[2],currentIdx:0};buildPalette();`,ctx);
  return {ctx,elements,local,windowEvents,documentEvents};
 }
@@ -86,6 +86,14 @@ test('result summary shows a separate locked-question count alongside marking to
  vm.runInContext(`finalized=true;attempt.lockedQuestions=[1,3];result={percentage:0,score:0,totalQuestions:3,correctCount:0,wrongCount:1,unattemptedCount:2,details:[{status:'wrong'},{status:'unattempted'},{status:'unattempted'}]};showResults();`,ctx);
  assert.equal(elements.resultStats.children.length,5);
  const locked=elements.resultStats.children[4];assert.equal(locked.children[0].textContent,2);assert.equal(locked.children[1].textContent,'Locked questions');
+});
+test('next student clears only the completed local attempt and preserves preferences',()=>{
+ const {ctx,local}=ui();let reloads=0;ctx.window.location={reload(){reloads++}};
+ local.set('oracle-theme','dark');vm.runInContext('localSave();nextStudent()',ctx);
+ assert(local.has('oracle-sql-attempt-v2'),'pending attempt must remain');assert.equal(reloads,0);
+ vm.runInContext('finalized=true;result={score:1};nextStudent()',ctx);
+ assert(!local.has('oracle-sql-attempt-v2'));assert.equal(local.get('oracle-theme'),'dark');assert.equal(reloads,1);
+ assert.equal(vm.runInContext('attempt',ctx),null);vm.runInContext('localSave()',ctx);assert(!local.has('oracle-sql-attempt-v2'));
 });
 test('blank question remains blank when locked and submitted exams do not acquire new locks',()=>{
  const {ctx}=ui();vm.runInContext('deadline=Date.now()+600000;currentIdx=0;attempt.currentIdx=2;syncProgress=async()=>{};lockCurrentQuestion();',ctx);

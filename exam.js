@@ -129,6 +129,7 @@ async function initialize() {
   };
   $("submitExamBtn").onclick = confirmSubmit;
   $("submitDialog").addEventListener("close", () => { if ($("submitDialog").returnValue === "submit") submitExam(); });
+  $("nextStudentBtn").onclick = nextStudent;
   $("retryBtn").onclick = () => submitExam();
   $("verifySessionBtn").onclick = openSessionVerification;
   $("sessionForm").onsubmit = recoverSession;
@@ -419,10 +420,23 @@ function acceptResult(value) {
   attempt.answers = Object.fromEntries(result.details.filter(d => Number.isInteger(d.selected)).map(d => [d.questionId, d.selected]));
   localSave(); showResults();
 }
+function nextStudent() {
+  // Pending answers must remain recoverable until the server confirms submission.
+  if (!finalized || !result) return;
+  try { localStorage.removeItem(STORAGE_KEY); } catch (_) {
+    $("resultSummary").textContent = "Unable to clear the saved session. Please allow site storage and try again.";
+    return;
+  }
+  clearInterval(timer); clearTimeout(saveTimer);
+  attempt = null; recovery = null; result = null; finalized = false; submitPending = false;
+  // pagehide/beforeunload cannot rewrite the cleared previous student's session.
+  window.location.reload();
+}
 function showResults() {
   setVisible("gateView", false); setVisible("examView", false); setVisible("timerDisplay", false); setVisible("resultView", true);
   $("sessionBadge").textContent = finalized ? "Assessment submitted" : "Submission pending";
   $("resultIdentity").textContent = `${attempt.name} · ${attempt.roll} · ${attempt.batch}`;
+  setVisible("nextStudentBtn", finalized && !!result);
   setVisible("verifySessionBtn", !finalized && needsSessionVerification);
   setVisible("examSubmitActions", false);
   $("resultNavigator").appendChild($("navigatorCard"));
