@@ -274,4 +274,18 @@ if(!process.argv.includes('--frontend-only')){
   assert.equal(recovered.feedback[one].selected,0);assert(Number.isInteger(recovered.feedback[one].correct));
  });
 
+ test('deadline is earlier of duration and closing time and server finalizes absent students once',()=>{
+  const b=createBackend();const closing=b.now()+120000;b.sheets.get('Settings').rows[2][1]=new Date(closing).toISOString();
+  const a=start(b).attempt;assert.equal(a.deadline,closing);
+  b.setClock(closing+16000);assert.equal(vm.runInContext('autoSubmitExpiredAttempts()',b.ctx),1);
+  assert.equal(b.sheets.get('Results').rows.length,2);assert.equal(vm.runInContext('autoSubmitExpiredAttempts()',b.ctx),0);
+  assert.equal(start(b).result.unattemptedCount,40);
+ });
+ test('shortened exam close is applied to existing attempts and online sync finalizes expired attempts',()=>{
+  const b=createBackend(),a=start(b).attempt;
+  b.sheets.get('Settings').rows[2][1]=new Date(b.now()+30000).toISOString();
+  const sync=b.post({action:'saveAttempt',rollNo:a.roll,token:a.token,answers:{}});assert.equal(sync.deadline,b.now()+30000);
+  b.advance(46000);const res=b.post({action:'saveAttempt',rollNo:a.roll,token:a.token,answers:{}});assert.equal(res.result.unattemptedCount,40);assert.equal(b.sheets.get('Results').rows.length,2);
+ });
+
 }

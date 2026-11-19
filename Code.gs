@@ -68,6 +68,7 @@ function doPost(e) {
       writeAttempt(stored.row,attempt);
       return jsonResponse({status:"ok",result:attempt.result});
     }
+    applyClosingDeadline(attempt);
     const now=Date.now();
     if(data.action === "submitQuestion") {
       if(now>attempt.deadline)throw new Error("Time has expired. Submit the exam to view your result.");
@@ -82,8 +83,12 @@ function doPost(e) {
       return jsonResponse({status:"ok",questionId:question.id,correctOption:question.ans,selectedOption:attempt.answers[question.id]});
     }
     if (data.action === "saveAttempt") {
+      if(now>attempt.deadline+15000){
+        attempt.result=gradeAttempt(attempt);ensureResultSaved(attempt);writeAttempt(stored.row,attempt);
+        return jsonResponse({status:"ok",result:attempt.result});
+      }
       if(now<=attempt.deadline){updateAnswers(attempt,data);writeAttempt(stored.row,attempt);}
-      return jsonResponse({status:"ok",serverNow:now,lockedQuestions:attempt.lockedQuestions || [],answers:attempt.answers});
+      return jsonResponse({status:"ok",serverNow:now,deadline:attempt.deadline,lockedQuestions:attempt.lockedQuestions || [],answers:attempt.answers});
     }
     // Allow 15 seconds for the final request to arrive. Later retries grade the last online save.
     if(now<=attempt.deadline+15000) updateAnswers(attempt,data);
@@ -108,6 +113,7 @@ function startAttempt(data, roll) {
   const stored=findAttempt(roll);
   if(stored){
     const attempt=stored.value;
+    applyClosingDeadline(attempt);
     attempt.result=attempt.result || recordedResult(roll);
     if(!attempt.result && Date.now()>attempt.deadline+15000){
       attempt.result=gradeAttempt(attempt);appendResult(attempt);SpreadsheetApp.flush();
@@ -281,3 +287,36 @@ function getAllResults(){
 
 function normalizeRoll(value){return String(value || "").trim().toUpperCase();}
 function jsonResponse(value){return ContentService.createTextOutput(JSON.stringify(value)).setMimeType(ContentService.MimeType.JSON);}
+
+// The stored duration deadline never moves later; a shortened closing time also applies.
+function applyClosingDeadline(attempt, closingTime){
+  const close=closingTime===undefined?new Date(getExamWindowStatus().closeISO || NaN).getTime():closingTime;
+  if(Number.isFinite(close))attempt.deadline=Math.min(attempt.deadline,close);
+}
+// Install once from the Apps Script editor while signed in as the spreadsheet owner.
+function installAutoSubmissionTrigger(){
+  const existing=ScriptApp.getProjectTriggers().filter(t=>t.getHandlerFunction()==="autoSubmitExpiredAttempts");
+  if(!existing.length)ScriptApp.newTrigger("autoSubmitExpiredAttempts").timeBased().everyMinutes(1).create();
+  return "Automatic submission check enabled (approximately every minute).";
+}
+function autoSubmitExpiredAttempts(){
+  const lock=LockService.getScriptLock();
+  if(!lock.tryLock(1000))return 0;
+  try{
+    const sheet=SpreadsheetApp.getActiveSpreadsheet().getSheetByName(ATTEMPTS_SHEET);
+    if(!sheet || sheet.getLastRow()<2)return 0;
+    const close=new Date(getExamWindowStatus().closeISO || NaN).getTime();
+    let count=0;
+    sheet.getRange(2,1,sheet.getLastRow()-1,3).getValues().forEach((row,index)=>{
+      try{
+        const attempt=JSON.parse(row[2]);
+        applyClosingDeadline(attempt,close);
+        if(!attempt.result && Date.now()>attempt.deadline+15000){
+          attempt.result=recordedResult(attempt.roll) || gradeAttempt(attempt);
+          ensureResultSaved(attempt);writeAttempt(index+2,attempt);count++;
+        }
+      }catch(err){console.error("Auto submission failed for attempt row "+(index+2)+": "+err.message);}
+    });
+    return count;
+  }finally{if(lock.hasLock())lock.releaseLock();}
+}

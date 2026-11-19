@@ -51,6 +51,9 @@ async function syncProgress() {
     const data = await api({action: "saveAttempt", rollNo: attempt.roll, token: attempt.token, ...snapshot()});
     lastSync = Date.now();
     if (data.result) { acceptResult(data.result); return; }
+    if (Number.isFinite(data.deadline)) {
+      deadline = Math.min(deadline, data.deadline); attempt.deadline = deadline;
+    }
     if (data.lockedQuestions) {
       const lockChanged = data.lockedQuestions.some(id => !(attempt.lockedQuestions || []).includes(id) || attempt.answers[id] !== data.answers[id]);
       attempt.lockedQuestions = [...new Set([...(attempt.lockedQuestions || []), ...data.lockedQuestions])];

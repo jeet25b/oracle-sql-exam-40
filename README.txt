@@ -123,3 +123,14 @@ VIEWED-QUESTION LOCKING AND REVIEW FEEDBACK
    the backend and device. Existing attempts start tracking new viewed questions after update;
    historical unsaved view history cannot be reconstructed. Publish index.html, exam.js and
    exam.css together, and redeploy Code.gs for server persistence/enforcement.
+
+AUTOMATIC SUBMISSION SETUP (ONE TIME)
+   Update Code.gs, save and deploy a new version. Select installAutoSubmissionTrigger in
+   the Apps Script function dropdown, click Run and grant required permissions as the owner.
+   This installs one trigger checking expired Attempts approximately every minute, even if
+   students close the browser. Re-running the installer does not create duplicate triggers.
+   The open exam page submits at the earlier of its duration limit and the exam closing time.
+   A shortened closing time is picked up on online sync (normally within 20 seconds).
+   The trigger grades the last server-saved answers after a 15-second arrival allowance;
+   offline unsynced answers cannot be recovered by the trigger. Trigger scheduling may vary.
+   Check Apps Script Executions for failures and keep faculty spreadsheet access available.
