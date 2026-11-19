@@ -45,7 +45,11 @@ test('tab changes and window blur permanently lock only the current question and
  ctx.document.hidden=true;documentEvents.visibilitychange();
  assert.equal(vm.runInContext('attempt.tabSwitches',ctx),1,'blur plus hidden must not double count');
  vm.runInContext('navigate(1)',ctx);assert(elements.optionsContainer.children.every(label=>!label.children[0].disabled));
- documentEvents.visibilitychange();assert.equal(vm.runInContext('attempt.lockedQuestions.includes(2)',ctx),true);
+ ctx.document.hidden=false;documentEvents.visibilitychange();windowEvents.focus();
+ ctx.document.hidden=true;documentEvents.visibilitychange();windowEvents.blur();
+ assert.equal(vm.runInContext('attempt.lockedQuestions.includes(2)',ctx),true);
+ assert.equal(vm.runInContext('attempt.tabSwitches',ctx),2);assert.equal(vm.runInContext('attempt.focusLosses',ctx),2);
+ windowEvents.blur();documentEvents.visibilitychange();assert.equal(vm.runInContext('attempt.focusLosses',ctx),2);
  const saved=JSON.parse(local.get('oracle-sql-attempt-v2'));assert.deepEqual(saved.attempt.lockedQuestions,[1,2]);
 });
 test('blank question remains blank when locked and submitted exams do not acquire new locks',()=>{
@@ -131,6 +135,38 @@ if(!process.argv.includes('--frontend-only')){
   const recovered=b.post(request);assert.equal(recovered.status,'ok');assert.equal(recovered.attempt.token,a.token);assert.equal(recovered.attempt.deadline,a.deadline);assert.equal(b.sheets.get('Attempts').rows.length,2);
   request.startedAt++;assert.equal(b.post(request).status,'error');assert.equal(b.sheets.get('Attempts').rows.length,2);
   request.rollNo='TEST002';request.accessCode='test-code-002';assert.equal(b.post(request).status,'error');assert.equal(b.sheets.get('Attempts').rows.length,2);
+ });
+
+ test('original nine-column Results layout is preserved and new rows include question-wise answers and marks',()=>{
+  const b=createBackend(),a=start(b).attempt;
+  const Sheet=b.sheets.get('Students').constructor;
+  const original=['2026-11-18','OLD001','Previous student','BCA',30,40,0.75,970,2];
+  b.sheets.set('Results',new Sheet([['Timestamp','RollNumber','StudentName','Batch','Score','TotalQuestions','Percentage','TimeTakenSec','TabSwitches'],original.slice()]));
+  const id=a.questions[0].id;
+  const response=b.post({action:'submit',rollNo:a.roll,token:a.token,answers:{[id]:0}});assert.equal(response.status,'ok');
+  const rows=b.sheets.get('Results').rows,headers=rows[0],row=rows[2];assert.deepEqual(rows[1],original);
+  assert.equal(headers[1],'RollNumber');assert.equal(row[1],a.roll);assert.equal(row[headers.indexOf('Q1_QuestionID')],id);
+  assert.equal(row[headers.indexOf('Q1_Selected')],'A');assert.equal(row[headers.indexOf('Q1_Question')],a.questions[0].q);
+  assert.equal(row[headers.indexOf('Q2_Status')],'unattempted');assert.equal(row[headers.indexOf('Q40_Marks')],0);
+  assert.equal(JSON.parse(row[headers.indexOf('Question Breakdown JSON')]).length,40);
+  const results=b.get({action:'results',key:'test-admin-key'}).results;assert.equal(results[0].score,30);assert.equal(results[0].correct,'');assert.equal(results[1].details.length,40);assert.equal(results[1].qMarks.length,40);
+  assert.equal(b.post({action:'submit',rollNo:a.roll,token:a.token,answers:{}}).status,'ok');assert.equal(rows.length,3);
+ });
+ test('completed attempt missing from Results is restored once by repair or retry',()=>{
+  const b=createBackend(),a=start(b).attempt;
+  b.post({action:'submit',rollNo:a.roll,token:a.token,answers:{}});
+  b.sheets.get('Results').rows.splice(1);
+  assert.equal(vm.runInContext('repairMissingResults()',b.ctx),1);assert.equal(vm.runInContext('repairMissingResults()',b.ctx),0);
+  assert.equal(b.sheets.get('Results').rows.length,2);
+  b.sheets.get('Results').rows.splice(1);
+  assert.equal(b.post({action:'submit',rollNo:a.roll,token:a.token,answers:{}}).status,'ok');assert.equal(b.sheets.get('Results').rows.length,2);
+ });
+
+ test('Results saves separate tab switches and focus losses with locked question count',()=>{
+  const b=createBackend(),a=start(b).attempt;
+  const r=b.post({action:'submit',rollNo:a.roll,token:a.token,answers:{},tabSwitches:3,focusLosses:5,lockedQuestions:[a.questions[0].id]});assert.equal(r.status,'ok');
+  const [headers,row]=b.sheets.get('Results').rows;assert.equal(row[headers.indexOf('TabSwitches')],3);assert.equal(row[headers.indexOf('FocusLosses')],5);assert.equal(row[headers.indexOf('LockedQuestions')],1);
+  const record=b.get({action:'results',key:'test-admin-key'}).results[0];assert.equal(record.focusLosses,5);assert.equal(record.tabSwitches,3);
  });
 
 }

@@ -30,8 +30,8 @@ Local changes do not update the live GitHub Pages site or the existing Apps Scri
      Timestamp (IST), Roll Number, Student Name, Batch, Total Score, Max Marks,
      Correct, Wrong, Unattempted, Question Breakdown JSON; followed by Q1_Marks ... Q40_Marks.
    Existing results with this schema are preserved and block new attempts for the same roll number.
-   If your existing Results uses the older Timestamp/RollNumber/StudentName layout,
-   rename it Results_Archive before rollout, then migrate any rolls that must remain blocked.
+   The older Timestamp/RollNumber/StudentName layout is supported directly. Keep the Results tab
+   and its existing rows. New detailed columns are appended automatically; no manual header edit is needed.
 
    Attempts is created automatically. It stores each student's fixed shuffled question set,
    session token, deadline, saved answers and result. Keep this spreadsheet private to faculty.
@@ -88,3 +88,25 @@ SESSION VERIFICATION RECOVERY
    create another attempt, reset the timer, or transfer answers to a different question set.
    Missing/replaced Attempts records need faculty restoration. Do not delete saved browser data
    or Attempts rows to resolve submission errors. Deploy Code.gs and the website together.
+
+RESULTS AND QUESTION-WISE RECOVERY
+   New Results rows include totals plus Q1..Q40 fields: Marks, QuestionID, Question,
+   Selected (A/B/C/D or Unanswered), Correct (A/B/C/D), Status, and the breakdown JSON.
+   Q1 means the first question in that student's shuffled order; QuestionID maps to the bank.
+   Existing total-only rows remain unchanged; absent historical answers are not invented.
+   To recover completed attempts missing from Results, paste the latest Code.gs into Apps Script,
+   save, select repairMissingResults from the function dropdown and click Run. Authorize if asked.
+   The log reports the number restored. Only Attempts records with an existing result are restored.
+   If the last submission never reached the server, use Verify session and submit on the original
+   student's browser. Missing Attempts data requires restoring the spreadsheet's original record.
+   Deploy > Manage deployments > Edit > New version > Deploy to activate fixes for students.
+   Keep the existing Results and Attempts tabs; do not rename or delete them for this update.
+
+FOCUS MONITORING IN RESULTS
+   TabSwitches counts transitions to a hidden exam tab/page. FocusLosses counts window blur
+   events (e.g. another app or browser window). One action may trigger both and appear in
+   both separate columns. Repeated events while still away are deduplicated; subsequent
+   departures are counted even if the current question is already locked.
+   LockedQuestions records how many question answers were locked. Counts autosave and resume.
+   Deploy updated exam.js AND Code.gs together. Historical missing focus counts stay blank;
+   they cannot be reconstructed from a total score or a historical combined event count.

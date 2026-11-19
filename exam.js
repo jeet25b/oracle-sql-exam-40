@@ -6,6 +6,7 @@ const STORAGE_KEY = "oracle-sql-attempt-v2";
 const $ = id => document.getElementById(id);
 let attempt = null, deadline = 0, clockOffset = 0, timer = null, saveTimer = null;
 let sending = false, finalized = false, syncing = false, resave = false, revision = 0;
+let tabAway = false, focusAway = false;
 let needsSessionVerification = false;
 let result = null, submitPending = false, lastSync = 0, warningLevel = 0, recovery = null;
 function setVisible(id, visible) { $(id).classList.toggle("hidden", !visible); }
@@ -32,7 +33,7 @@ function localSave() {
   }
 }
 function snapshot() {
-  return {answers: {...attempt.answers}, flags: [...attempt.flags], currentIdx: attempt.currentIdx, tabSwitches: attempt.tabSwitches || 0, lockedQuestions: [...(attempt.lockedQuestions || [])]};
+  return {answers: {...attempt.answers}, flags: [...attempt.flags], currentIdx: attempt.currentIdx, tabSwitches: attempt.tabSwitches || 0, focusLosses: attempt.focusLosses || 0, lockedQuestions: [...(attempt.lockedQuestions || [])]};
 }
 function changed() {
   revision++;
@@ -109,11 +110,12 @@ async function initialize() {
   window.addEventListener("online", () => { if (submitPending) submitExam(); else syncProgress(); });
   window.addEventListener("offline", () => { if (attempt && !finalized) $("saveStatus").textContent = "Offline · progress retained on this device"; });
   document.addEventListener("visibilitychange", () => {
-    if (document.hidden) lockCurrentQuestion();
-    else if (attempt && !finalized && !submitPending) { tick(); renderQuestion(); syncProgress(); }
+    if (document.hidden) recordFocusEvent("tab");
+    else { tabAway = false; if (attempt && !finalized && !submitPending) { tick(); renderQuestion(); syncProgress(); } }
   });
-  window.addEventListener("blur", lockCurrentQuestion);
+  window.addEventListener("blur", () => recordFocusEvent("focus"));
   window.addEventListener("focus", () => {
+    focusAway = false;
     if (attempt && !finalized && !submitPending) { tick(); renderQuestion(); syncProgress(); }
   });
   window.addEventListener("pagehide", localSave);
@@ -178,6 +180,7 @@ async function startExam(e) {
       attempt.answers = Object.fromEntries(Object.entries(previous.attempt.answers || {}).filter(([id]) => allowed.has(id)));
       attempt.flags = (previous.attempt.flags || []).filter(id => allowed.has(String(id)));
       attempt.currentIdx = Math.min(previous.attempt.currentIdx || 0, attempt.questions.length - 1);
+      attempt.focusLosses = Math.max(attempt.focusLosses || 0, previous.attempt.focusLosses || 0);
       attempt.tabSwitches = Math.max(attempt.tabSwitches || 0, previous.attempt.tabSwitches || 0);
       attempt.lockedQuestions = [...new Set([...serverLocked, ...(previous.attempt.lockedQuestions || []).filter(id => allowed.has(String(id)))])];
       for (const id of serverLocked) {
@@ -200,13 +203,24 @@ function blocked() { return !attempt || finalized || submitPending || Date.now()
 function questionBlocked() {
   return blocked() || (attempt.lockedQuestions || []).includes(attempt.questions[attempt.currentIdx].id);
 }
+function recordFocusEvent(kind) {
+  if (blocked()) return;
+  if (kind === "tab") {
+    if (tabAway) return;
+    tabAway = true; attempt.tabSwitches = (attempt.tabSwitches || 0) + 1;
+  } else {
+    if (focusAway) return;
+    focusAway = true; attempt.focusLosses = (attempt.focusLosses || 0) + 1;
+  }
+  lockCurrentQuestion();
+  changed(); syncProgress();
+}
 function lockCurrentQuestion() {
   if (blocked()) return;
   const id = attempt.questions[attempt.currentIdx].id;
   attempt.lockedQuestions = attempt.lockedQuestions || [];
   if (attempt.lockedQuestions.includes(id)) return;
   attempt.lockedQuestions.push(id);
-  attempt.tabSwitches = (attempt.tabSwitches || 0) + 1;
   changed(); renderQuestion(); syncProgress();
 }
 function tick() {

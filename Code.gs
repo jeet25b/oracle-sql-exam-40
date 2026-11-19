@@ -54,6 +54,7 @@ function doPost(e) {
       if (value.startedAt !== data.startedAt || JSON.stringify(ids) !== JSON.stringify(data.questionIds)) {
         throw new Error("The server holds a different attempt for this roll number. Ask your teacher to restore the original Attempts record. Saved answers cannot be transferred to a different exam.");
       }
+      if(value.result)ensureResultSaved(value);
       return jsonResponse({status:"ok",attempt:publicAttempt(value),result:value.result || recordedResult(roll),serverNow:Date.now()});
     }
     if (data.action !== "saveAttempt" && data.action !== "submit") throw new Error("Unknown action.");
@@ -63,6 +64,7 @@ function doPost(e) {
     // A response can be lost after a successful spreadsheet write. Retries return the same result.
     if (!attempt.result) attempt.result = recordedResult(roll);
     if (attempt.result) {
+      ensureResultSaved(attempt);
       writeAttempt(stored.row,attempt);
       return jsonResponse({status:"ok",result:attempt.result});
     }
@@ -98,6 +100,7 @@ function startAttempt(data, roll) {
     if(!attempt.result && Date.now()>attempt.deadline+15000){
       attempt.result=gradeAttempt(attempt);appendResult(attempt);SpreadsheetApp.flush();
     }
+    if(attempt.result)ensureResultSaved(attempt);
     writeAttempt(stored.row,attempt);
     return {status:"ok",attempt:publicAttempt(attempt),result:attempt.result || null,serverNow:Date.now()};
   }
@@ -113,14 +116,14 @@ function startAttempt(data, roll) {
   if(!name || name.length>120 || !batch || batch.length>180) throw new Error("Complete your name and academic details.");
   const attempt={roll:roll,name:name,batch:batch,token:Utilities.getUuid(),startedAt:now,
     deadline:Math.min(now+win.durationMinutes*60000,new Date(win.closeISO).getTime()),
-    updatedAt:now,questions:pool.slice(0,EXAM_SIZE),answers:{},flags:[],lockedQuestions:[],currentIdx:0,tabSwitches:0,result:null};
+    updatedAt:now,questions:pool.slice(0,EXAM_SIZE),answers:{},flags:[],lockedQuestions:[],currentIdx:0,tabSwitches:0,focusLosses:0,result:null};
   const sheet=attemptSheet();sheet.appendRow([roll,attempt.token,JSON.stringify(attempt)]);SpreadsheetApp.flush();
   return {status:"ok",attempt:publicAttempt(attempt),serverNow:now};
 }
 function publicAttempt(attempt){
   return {roll:attempt.roll,name:attempt.name,batch:attempt.batch,token:attempt.token,startedAt:attempt.startedAt,deadline:attempt.deadline,updatedAt:attempt.updatedAt || attempt.startedAt,
     questions:attempt.questions.map(q=>({id:q.id,topic:q.topic,q:q.q,options:q.options})),
-    answers:attempt.answers,flags:attempt.flags,lockedQuestions:attempt.lockedQuestions || [],currentIdx:attempt.currentIdx,tabSwitches:attempt.tabSwitches};
+    answers:attempt.answers,flags:attempt.flags,lockedQuestions:attempt.lockedQuestions || [],currentIdx:attempt.currentIdx,tabSwitches:attempt.tabSwitches,focusLosses:attempt.focusLosses || 0};
 }
 function attemptSheet(){
   const ss=SpreadsheetApp.getActiveSpreadsheet();let sheet=ss.getSheetByName(ATTEMPTS_SHEET);
@@ -149,6 +152,7 @@ function updateAnswers(attempt,data){
   attempt.lockedQuestions=[...new Set([...(attempt.lockedQuestions || []), ...(Array.isArray(data.lockedQuestions)?data.lockedQuestions:[])])].filter(id=>ids.includes(id));
   attempt.flags=Array.isArray(data.flags)?[...new Set(data.flags)].filter(id=>ids.includes(id)):[];
   attempt.currentIdx=Number.isInteger(data.currentIdx)?Math.max(0,Math.min(ids.length-1,data.currentIdx)):0;
+  attempt.focusLosses=Math.max(attempt.focusLosses || 0,Math.max(0,Math.floor(Number(data.focusLosses)||0)));
   attempt.tabSwitches=Math.max(attempt.tabSwitches || 0,Math.max(0,Number(data.tabSwitches)||0));
 }
 function gradeAttempt(attempt){
@@ -163,27 +167,70 @@ function gradeAttempt(attempt){
     submittedAt:new Date().toISOString(),timeTakenSec:Math.max(0,Math.round((Math.min(Date.now(),attempt.deadline)-attempt.startedAt)/1000))};
 }
 function safeCell(value){const text=String(value || "");return /^[=+@\-]/.test(text)?"'"+text:text;}
+// Resolve both the original nine-column Results layout and the newer detailed layout.
+function resultColumn(headers, names){return headers.findIndex(h=>names.includes(String(h).trim()));}
+function readResult(headers,row){
+  const value=(names,fallback="")=>{const i=resultColumn(headers,names);return i<0 || row[i]===undefined || row[i]===""?fallback:row[i];};
+  const score=Number(value(["Total Score","Score"],0)),total=Number(value(["Max Marks","TotalQuestions"],40));
+  let details=[];const raw=value(["Question Breakdown JSON"]);
+  if(raw){try{details=JSON.parse(raw);}catch(_){details=[];}}
+  return {timestamp:value(["Timestamp (IST)","Timestamp"]),rollNo:value(["Roll Number","RollNumber"]),name:value(["Student Name","StudentName"]),batch:value(["Batch"]),
+    score:score,maxMarks:total,tabSwitches:value(["TabSwitches"]),focusLosses:value(["FocusLosses"]),lockedQuestions:value(["LockedQuestions"]),percentage:total?Math.round(score/total*10000)/100:0,
+    correct:value(["Correct"],details.length?details.filter(d=>d.status==="correct").length:""),
+    wrong:value(["Wrong"],details.length?details.filter(d=>d.status==="wrong").length:""),
+    unattempted:value(["Unattempted"],details.length?details.filter(d=>d.status==="unattempted").length:""),details:details,
+    qMarks:headers.flatMap((h,i)=>/^Q\d+_Marks$/.test(String(h))?[{q:String(h).replace("_Marks",""),mark:row[i]??""}]:[])};
+}
 function appendResult(attempt){
   const ss=SpreadsheetApp.getActiveSpreadsheet();let sheet=ss.getSheetByName(RESULTS_SHEET);
+  if(!sheet)sheet=ss.insertSheet(RESULTS_SHEET);
+  if(!sheet.getLastRow())sheet.appendRow(["Timestamp (IST)","Roll Number","Student Name","Batch","Total Score","Max Marks","Correct","Wrong","Unattempted","Question Breakdown JSON"]);
+  const headers=sheet.getDataRange().getValues()[0].map(String);
+  if(resultColumn(headers,["Roll Number","RollNumber"])<0 || resultColumn(headers,["Score","Total Score"])<0)throw new Error("Results headers are not recognized. Keep RollNumber/Score or Roll Number/Total Score headers.");
   const r=attempt.result;
-  if(!sheet || sheet.getLastRow()===0){
-    if(!sheet)sheet=ss.insertSheet(RESULTS_SHEET);
-    const headers=["Timestamp (IST)","Roll Number","Student Name","Batch","Total Score","Max Marks","Correct","Wrong","Unattempted","Question Breakdown JSON"];
-    for(let i=1;i<=r.totalQuestions;i++)headers.push("Q"+i+"_Marks");
-    sheet.appendRow(headers);sheet.getRange(1,1,1,headers.length).setFontWeight("bold");
-  }
-  const headers=sheet.getRange(1,1,1,10).getValues()[0];
-  if(headers[1]!=="Roll Number" || headers[9]!=="Question Breakdown JSON")throw new Error("Results sheet uses an older layout. Rename it to Results_Archive before using this version.");
-  sheet.appendRow([Utilities.formatDate(new Date(),"Asia/Kolkata","dd MMM yyyy, hh:mm:ss a"),attempt.roll,safeCell(attempt.name),safeCell(attempt.batch),r.score,r.totalQuestions,r.correctCount,r.wrongCount,r.unattemptedCount,JSON.stringify(r.details),...r.details.map(d=>d.mark)]);
+  const fields=[[["Timestamp (IST)","Timestamp"],Utilities.formatDate(new Date(r.submittedAt || Date.now()),"Asia/Kolkata","dd MMM yyyy, hh:mm:ss a")],
+    [["Roll Number","RollNumber"],attempt.roll],[["Student Name","StudentName"],safeCell(attempt.name)],[["Batch"],safeCell(attempt.batch)],
+    [["Total Score","Score"],r.score],[["Max Marks","TotalQuestions"],r.totalQuestions],[["Percentage"],r.percentage/100],
+    [["TimeTakenSec"],r.timeTakenSec??""],[["TabSwitches"],attempt.tabSwitches||0],[["FocusLosses"],attempt.focusLosses??""],[["LockedQuestions"],(attempt.lockedQuestions || []).length],[["Correct"],r.correctCount],[["Wrong"],r.wrongCount],[["Unattempted"],r.unattemptedCount],[["Question Breakdown JSON"],JSON.stringify(r.details)]];
+  r.details.forEach(d=>{
+    const q=attempt.questions.find(q=>q.id===d.questionId),prefix="Q"+d.qNo;
+    fields.push([[prefix+"_Marks"],d.mark],[[prefix+"_QuestionID"],d.questionId],[[prefix+"_Question"],safeCell(q?q.q:"")],
+      [[prefix+"_Selected"],Number.isInteger(d.selected)?String.fromCharCode(65+d.selected):"Unanswered"],
+      [[prefix+"_Correct"],q?String.fromCharCode(65+q.ans):""],[[prefix+"_Status"],d.status]);
+  });
+  const row=[];
+  fields.forEach(([aliases,value])=>{let i=resultColumn(headers,aliases);if(i<0){i=headers.length;headers.push(aliases[0]);}row[i]=value;});
+  const needed=headers.length-sheet.getMaxColumns();if(needed>0)sheet.insertColumnsAfter(sheet.getMaxColumns(),needed);
+  sheet.getRange(1,1,1,headers.length).setValues([headers]).setFontWeight("bold");
+  sheet.appendRow(headers.map((_,i)=>row[i]??""));
+  const percent=resultColumn(headers,["Percentage"]);sheet.getRange(sheet.getLastRow(),percent+1).setNumberFormat("0.00%");
 }
 function recordedResult(roll){
   const sheet=SpreadsheetApp.getActiveSpreadsheet().getSheetByName(RESULTS_SHEET);
   if(!sheet || sheet.getLastRow()<2)return null;
-  const rows=sheet.getDataRange().getValues();
-  const row=rows.slice(1).find(r=>normalizeRoll(r[1])===roll);if(!row)return null;
-  const details=typeof row[9]==="string" && row[9]?JSON.parse(row[9]):[];
-  return {score:Number(row[4]),totalQuestions:Number(row[5]),percentage:Math.round(Number(row[4])/Number(row[5])*10000)/100,
-    correctCount:Number(row[6]),wrongCount:Number(row[7]),unattemptedCount:Number(row[8]),details:details};
+  const rows=sheet.getDataRange().getValues(),headers=rows[0],column=resultColumn(headers,["Roll Number","RollNumber"]);
+  if(column<0)return null;
+  const row=rows.slice(1).find(r=>normalizeRoll(r[column])===roll);if(!row)return null;
+  const r=readResult(headers,row);
+  return {score:r.score,totalQuestions:r.maxMarks,percentage:r.percentage,correctCount:r.correct,wrongCount:r.wrong,unattemptedCount:r.unattempted,details:r.details};
+}
+function ensureResultSaved(attempt){
+  if(!recordedResult(attempt.roll)){appendResult(attempt);SpreadsheetApp.flush();}
+}
+// Run manually from Apps Script to restore completed Attempts that are missing from Results.
+// It never finalizes unfinished attempts and never creates duplicate roll-number rows.
+function repairMissingResults(){
+  const lock=LockService.getScriptLock();lock.waitLock(30000);
+  try{
+    const sheet=SpreadsheetApp.getActiveSpreadsheet().getSheetByName(ATTEMPTS_SHEET);
+    if(!sheet || sheet.getLastRow()<2)return 0;
+    let count=0;
+    sheet.getRange(2,1,sheet.getLastRow()-1,3).getValues().forEach(row=>{
+      const attempt=JSON.parse(row[2]);
+      if(attempt.result && !recordedResult(attempt.roll)){ensureResultSaved(attempt);count++;}
+    });
+    console.log("Restored "+count+" missing results.");return count;
+  }finally{if(lock.hasLock())lock.releaseLock();}
 }
 function getExamWindowStatus(){
   const sheet=SpreadsheetApp.getActiveSpreadsheet().getSheetByName(SETTINGS_SHEET);
@@ -199,38 +246,11 @@ function getExamWindowStatus(){
     closeFormatted:Utilities.formatDate(close,"Asia/Kolkata","dd MMM yyyy, HH:mm")+" IST (UTC+05:30)"});
 }
 
-function getAllResults() {
-  const ss = SpreadsheetApp.getActiveSpreadsheet();
-  const sheet = ss.getSheetByName(RESULTS_SHEET);
-  if (!sheet || sheet.getLastRow() < 2) return [];
-
-  const data = sheet.getDataRange().getValues();
-  const headers = data[0];
-  const rows = [];
-
-  for (let i = 1; i < data.length; i++) {
-    const r = data[i];
-    const qMarks = [];
-    for (let c = 10; c < headers.length; c++) {
-      qMarks.push({ q: headers[c].replace("_Marks", ""), mark: r[c] });
-    }
-    rows.push({
-      timestamp: r[0],
-      rollNo: r[1],
-      name: r[2],
-      batch: r[3],
-      score: r[4],
-      maxMarks: r[5],
-      correct: r[6],
-      wrong: r[7],
-      unattempted: r[8],
-      details: r[9] ? JSON.parse(r[9]) : [],
-      qMarks: qMarks
-    });
-  }
-  return rows;
+function getAllResults(){
+  const sheet=SpreadsheetApp.getActiveSpreadsheet().getSheetByName(RESULTS_SHEET);
+  if(!sheet || sheet.getLastRow()<2)return [];
+  const rows=sheet.getDataRange().getValues();return rows.slice(1).map(row=>readResult(rows[0],row));
 }
-
 
 function normalizeRoll(value){return String(value || "").trim().toUpperCase();}
 function jsonResponse(value){return ContentService.createTextOutput(JSON.stringify(value)).setMimeType(ContentService.MimeType.JSON);}

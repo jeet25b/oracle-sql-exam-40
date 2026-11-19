@@ -4,11 +4,13 @@ function createBackend(){
  class Sheet{
   constructor(rows=[]){this.rows=rows;}
   getLastRow(){return this.rows.length;}
+  getMaxColumns(){return Math.max(26,...this.rows.map(r=>r.length));}
+  insertColumnsAfter(){return this;}
   appendRow(row){this.rows.push([...row]);return this;}
   getRange(row,col,n=1,m=1){const self=this;return {
    getValues(){return Array.from({length:n},(_,i)=>Array.from({length:m},(_,j)=>self.rows[row-1+i]?.[col-1+j]??''));},
    getDisplayValues(){return this.getValues().map(r=>r.map(String));},
-   setValue(value){while(self.rows.length<row)self.rows.push([]);self.rows[row-1][col-1]=value;return this;},setFontWeight(){return this;}
+   setValue(value){while(self.rows.length<row)self.rows.push([]);self.rows[row-1][col-1]=value;return this;},setValues(values){for(let i=0;i<n;i++){while(self.rows.length<row+i)self.rows.push([]);for(let j=0;j<m;j++)self.rows[row-1+i][col-1+j]=values[i][j];}return this;},setNumberFormat(){return this;},setFontWeight(){return this;}
   };}
   getDataRange(){return this.getRange(1,1,this.rows.length,Math.max(1,...this.rows.map(r=>r.length)));}
  }
