@@ -99,12 +99,16 @@ test('final submission check includes locked questions',()=>{
  const {ctx,elements}=ui();vm.runInContext('deadline=Date.now()+600000;attempt.lockedQuestions=[1,3];confirmSubmit()',ctx);
  assert(elements.confirmCounts.textContent.includes('Locked questions: 2'));assert.equal(elements.submitDialog.open,true);
 });
-test('Submit Question saves and advances except on final question, without skipping blank answers',async()=>{
+test('Submit Question shows server feedback for one second then advances',async()=>{
  const {ctx,elements}=ui();await vm.runInContext('initialize()',ctx);
  vm.runInContext('deadline=Date.now()+600000;syncProgress=async()=>{};',ctx);
- elements.submitQuestionBtn.onclick();assert.equal(vm.runInContext('attempt.currentIdx',ctx),1);assert.equal(vm.runInContext('attempt.answers[1]',ctx),0);
- vm.runInContext('attempt.currentIdx=2;renderQuestion()',ctx);elements.submitQuestionBtn.onclick();assert.equal(vm.runInContext('attempt.currentIdx',ctx),2);assert(elements.saveStatus.textContent.includes('Select an answer'));
- vm.runInContext('attempt.answers[3]=1',ctx);elements.submitQuestionBtn.onclick();assert.equal(vm.runInContext('attempt.currentIdx',ctx),2);assert.equal(elements.submitQuestionBtn.textContent,'Answer saved ✓');
+ let release;ctx.setTimeout=(callback,ms)=>{if(ms===1000)release=callback;return 1};
+ ctx.api=async()=>({status:'ok',correctOption:1,selectedOption:0});
+ const pending=vm.runInContext('submitCurrentQuestion()',ctx);await new Promise(r=>setImmediate(r));
+ assert.equal(vm.runInContext('attempt.currentIdx',ctx),0);
+ assert(elements.questionPalette.children[0].className.includes('incorrect'));
+ assert(elements.optionsContainer.children[0].classList);assert.equal(typeof release,'function');
+ release();await pending;assert.equal(vm.runInContext('attempt.currentIdx',ctx),1);
 });
 test('blank question remains blank when locked and submitted exams do not acquire new locks',()=>{
  const {ctx}=ui();vm.runInContext('deadline=Date.now()+600000;currentIdx=0;attempt.currentIdx=2;syncProgress=async()=>{};lockCurrentQuestion();',ctx);
@@ -237,6 +241,13 @@ if(!process.argv.includes('--frontend-only')){
    const answers=Object.fromEntries(stored.questions.map(q=>[q.id,q.ans]));
    assert.equal(b.post({action:'submit',rollNo:stored.roll,token:stored.token,answers}).result.score,40);
   }
+ });
+
+ test('question feedback saves answer and returns canonical remapped correct option',()=>{
+  const b=createBackend(),a=start(b).attempt,q=a.questions[0];const stored=JSON.parse(b.sheets.get('Attempts').rows[1][2]);
+  const response=b.post({action:'submitQuestion',rollNo:a.roll,token:a.token,questionId:q.id,answers:{[q.id]:0}});
+  assert.equal(response.status,'ok');assert.equal(response.correctOption,stored.questions[0].ans);assert.equal(response.selectedOption,0);
+  assert.equal(JSON.parse(b.sheets.get('Attempts').rows[1][2]).answers[q.id],0);
  });
 
 }

@@ -110,16 +110,10 @@ async function initialize() {
   });
   $("prevBtn").onclick = () => navigate(-1);
   $("nextBtn").onclick = () => navigate(1);
-  $("submitQuestionBtn").onclick = () => {
-    if (questionBlocked()) return;
-    const q = attempt.questions[attempt.currentIdx];
-    if (attempt.answers[q.id] === undefined) { $("saveStatus").textContent = "Select an answer before submitting this question."; return; }
-    changed(); syncProgress();
-    if (attempt.currentIdx < attempt.questions.length - 1) navigate(1);
-    else $("submitQuestionBtn").textContent = "Answer saved ✓";
-  };
+  $("submitQuestionBtn").onclick = submitCurrentQuestion;
   $("clearBtn").onclick = () => {
     if (questionBlocked()) return;
+    if(attempt.feedback)delete attempt.feedback[attempt.questions[attempt.currentIdx].id];
     delete attempt.answers[attempt.questions[attempt.currentIdx].id]; changed(); renderQuestion();
   };
   $("flagBtn").onclick = () => {
@@ -244,9 +238,33 @@ async function startExam(e) {
   } catch (err) { message(err.message, "closed"); }
   finally { sending = false; $("startBtn").disabled = false; $("startBtn").textContent = "Start / resume assessment →"; }
 }
+let questionFeedbackBusy = false;
+async function submitCurrentQuestion() {
+  if(questionBlocked() || questionFeedbackBusy) return;
+  const q=attempt.questions[attempt.currentIdx];
+  if(attempt.answers[q.id]===undefined){$("saveStatus").textContent="Select an answer before submitting this question.";return;}
+  questionFeedbackBusy=true;
+  $("submitQuestionBtn").disabled=true;
+  $("submitQuestionBtn").textContent="Saving…";
+  changed();
+  try {
+    const response=await api({action:"submitQuestion",rollNo:attempt.roll,token:attempt.token,questionId:q.id,...snapshot()});
+    if(response.result){acceptResult(response.result);return;}
+    attempt.feedback=attempt.feedback || {};
+    attempt.feedback[q.id]={correct:response.correctOption,selected:response.selectedOption};
+    localSave();renderQuestion();
+    $("submitQuestionBtn").textContent=response.selectedOption===response.correctOption?"Correct ✓":"Incorrect";
+    await new Promise(resolve=>setTimeout(resolve,1000));
+    questionFeedbackBusy=false;
+    if(!blocked() && attempt.questions[attempt.currentIdx].id===q.id){
+      if(attempt.currentIdx<attempt.questions.length-1)navigate(1);else renderQuestion();
+    }
+  } catch(err){$("saveStatus").textContent=err.message;}
+  finally{questionFeedbackBusy=false;if(attempt && !finalized && !submitPending)renderQuestion();}
+}
 function blocked() { return !attempt || finalized || submitPending || Date.now() + clockOffset >= deadline; }
 function questionBlocked() {
-  return blocked() || (attempt.lockedQuestions || []).includes(attempt.questions[attempt.currentIdx].id);
+  return blocked() || questionFeedbackBusy || (attempt.lockedQuestions || []).includes(attempt.questions[attempt.currentIdx].id);
 }
 function recordFocusEvent(kind) {
   if (blocked()) return;
@@ -291,7 +309,12 @@ function renderQuestion(focus = false) {
     const radio = document.createElement("input"); radio.type = "radio"; radio.name = "answer"; radio.value = String(index); radio.checked = attempt.answers[q.id] === index; radio.disabled = questionBlocked();
     const letter = document.createElement("span"); letter.className = "option-letter"; letter.textContent = String.fromCharCode(65 + index) + "."; letter.setAttribute("aria-hidden", "true");
     const text = document.createElement("span"); text.textContent = option;
-    radio.onchange = () => { if (questionBlocked()) return; attempt.answers[q.id] = index; $("submitQuestionBtn").textContent = "Submit Question"; changed(); updatePalette(); };
+    const feedback=attempt.feedback && attempt.feedback[q.id];
+    if(questionFeedbackBusy && feedback){
+      if(index===feedback.correct)label.classList.add("feedback-correct");
+      else if(index===feedback.selected)label.classList.add("feedback-wrong");
+    }
+    radio.onchange = () => { if (questionBlocked()) return; if(attempt.feedback)delete attempt.feedback[q.id]; attempt.answers[q.id] = index; $("submitQuestionBtn").textContent = "Submit Question"; changed(); updatePalette(); };
     label.append(radio, letter, text); options.appendChild(label);
   });
   $("prevBtn").disabled = attempt.currentIdx === 0 || submitPending;
@@ -311,7 +334,7 @@ function updateFlag() {
   $("flagBtn").textContent = flagged ? "⚑ Flagged for review" : "⚑ Mark for review";
 }
 function navigate(delta) {
-  if (blocked()) return;
+  if (questionFeedbackBusy || blocked()) return;
   attempt.currentIdx = Math.max(0, Math.min(attempt.questions.length - 1, attempt.currentIdx + delta));
   changed(); renderQuestion(true);
 }
@@ -319,7 +342,7 @@ function buildPalette() {
   $("questionPalette").replaceChildren();
   attempt.questions.forEach((q, idx) => {
     const btn = document.createElement("button"); btn.type = "button"; btn.textContent = String(idx + 1);
-    btn.onclick = () => { if (blocked()) return; attempt.currentIdx = idx; changed(); renderQuestion(true); };
+    btn.onclick = () => { if (questionFeedbackBusy || blocked()) return; attempt.currentIdx = idx; changed(); renderQuestion(true); };
     $("questionPalette").appendChild(btn);
   });
 }
@@ -337,7 +360,8 @@ function updatePalette() {
     const btn = $("questionPalette").children[idx];
     const detail = result && result.details ? result.details[idx] : null;
     const answered = attempt.answers[q.id] !== undefined;
-    let state = detail ? detail.status : answered ? "answered" : "unanswered";
+    const feedback=attempt.feedback && attempt.feedback[q.id];
+    let state = detail ? detail.status : feedback && feedback.selected===attempt.answers[q.id] ? (feedback.correct===feedback.selected?"correct":"wrong") : answered ? "answered" : "unanswered";
     const flagged = !finalized && attempt.flags.includes(q.id);
     const locked = !finalized && (attempt.lockedQuestions || []).includes(q.id);
     btn.className = "pal-btn" + ((state === "correct" || state === "answered") ? " answered" : state === "wrong" ? " incorrect" : "") + (locked ? " locked" : "") + (flagged ? " flagged" : "") + (!finalized && !submitPending && attempt.currentIdx === idx ? " current" : "");

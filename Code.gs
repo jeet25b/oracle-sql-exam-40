@@ -57,7 +57,7 @@ function doPost(e) {
       if(value.result)ensureResultSaved(value);
       return jsonResponse({status:"ok",attempt:publicAttempt(value),result:value.result || recordedResult(roll),serverNow:Date.now()});
     }
-    if (data.action !== "saveAttempt" && data.action !== "submit") throw new Error("Unknown action.");
+    if (data.action !== "saveAttempt" && data.action !== "submit" && data.action !== "submitQuestion") throw new Error("Unknown action.");
     const stored = findAttempt(roll);
     if (!stored || !data.token || stored.value.token !== data.token) throw new Error("Your session could not be verified. Sign in again with your access code.");
     const attempt = stored.value;
@@ -69,6 +69,16 @@ function doPost(e) {
       return jsonResponse({status:"ok",result:attempt.result});
     }
     const now=Date.now();
+    if(data.action === "submitQuestion") {
+      if(now>attempt.deadline)throw new Error("Time has expired. Submit the exam to view your result.");
+      const question=attempt.questions.find(q=>q.id===data.questionId);
+      if(!question)throw new Error("Invalid question.");
+      if((attempt.lockedQuestions || []).includes(question.id))throw new Error("This question is locked.");
+      updateAnswers(attempt,data);
+      if(!Number.isInteger(attempt.answers[question.id]))throw new Error("Select an answer first.");
+      writeAttempt(stored.row,attempt);
+      return jsonResponse({status:"ok",questionId:question.id,correctOption:question.ans,selectedOption:attempt.answers[question.id]});
+    }
     if (data.action === "saveAttempt") {
       if(now<=attempt.deadline){updateAnswers(attempt,data);writeAttempt(stored.row,attempt);}
       return jsonResponse({status:"ok",serverNow:now,lockedQuestions:attempt.lockedQuestions || [],answers:attempt.answers});

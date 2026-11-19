@@ -28,3 +28,5 @@
 
 /* Programmatically focused result heading retains screen-reader focus without a border. */
 #resultHeading:focus{outline:none}
+
+.option.feedback-correct{background:var(--green-bg);border-color:var(--green);color:var(--green)}.option.feedback-wrong{background:var(--red-bg);border-color:var(--red);color:var(--red)}
