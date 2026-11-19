@@ -115,7 +115,8 @@ async function initialize() {
     const q = attempt.questions[attempt.currentIdx];
     if (attempt.answers[q.id] === undefined) { $("saveStatus").textContent = "Select an answer before submitting this question."; return; }
     changed(); syncProgress();
-    $("submitQuestionBtn").textContent = "Answer saved ✓";
+    if (attempt.currentIdx < attempt.questions.length - 1) navigate(1);
+    else $("submitQuestionBtn").textContent = "Answer saved ✓";
   };
   $("clearBtn").onclick = () => {
     if (questionBlocked()) return;

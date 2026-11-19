@@ -99,6 +99,13 @@ test('final submission check includes locked questions',()=>{
  const {ctx,elements}=ui();vm.runInContext('deadline=Date.now()+600000;attempt.lockedQuestions=[1,3];confirmSubmit()',ctx);
  assert(elements.confirmCounts.textContent.includes('Locked questions: 2'));assert.equal(elements.submitDialog.open,true);
 });
+test('Submit Question saves and advances except on final question, without skipping blank answers',async()=>{
+ const {ctx,elements}=ui();await vm.runInContext('initialize()',ctx);
+ vm.runInContext('deadline=Date.now()+600000;syncProgress=async()=>{};',ctx);
+ elements.submitQuestionBtn.onclick();assert.equal(vm.runInContext('attempt.currentIdx',ctx),1);assert.equal(vm.runInContext('attempt.answers[1]',ctx),0);
+ vm.runInContext('attempt.currentIdx=2;renderQuestion()',ctx);elements.submitQuestionBtn.onclick();assert.equal(vm.runInContext('attempt.currentIdx',ctx),2);assert(elements.saveStatus.textContent.includes('Select an answer'));
+ vm.runInContext('attempt.answers[3]=1',ctx);elements.submitQuestionBtn.onclick();assert.equal(vm.runInContext('attempt.currentIdx',ctx),2);assert.equal(elements.submitQuestionBtn.textContent,'Answer saved ✓');
+});
 test('blank question remains blank when locked and submitted exams do not acquire new locks',()=>{
  const {ctx}=ui();vm.runInContext('deadline=Date.now()+600000;currentIdx=0;attempt.currentIdx=2;syncProgress=async()=>{};lockCurrentQuestion();',ctx);
  assert.equal(vm.runInContext('attempt.answers[3]',ctx),undefined);assert.equal(vm.runInContext('questionBlocked()',ctx),true);
