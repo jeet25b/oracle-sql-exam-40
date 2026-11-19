@@ -104,6 +104,10 @@ async function initialize() {
   document.addEventListener("fullscreenchange", updateFullscreenButton);
   updateFullscreenButton();
   $("studentForm").onsubmit = startExam;
+  // Fullscreen requires a real gesture: request it on the first login interaction.
+  $("studentForm").addEventListener("pointerdown", event => {
+    if (event.isTrusted && !attempt && !document.fullscreenElement) enterFullscreen();
+  });
   $("prevBtn").onclick = () => navigate(-1);
   $("nextBtn").onclick = () => navigate(1);
   $("submitQuestionBtn").onclick = () => {
@@ -134,7 +138,7 @@ async function initialize() {
   window.addEventListener("online", () => { if (submitPending) submitExam(); else syncProgress(); });
   window.addEventListener("offline", () => { if (attempt && !finalized) $("saveStatus").textContent = "Offline · progress retained on this device"; });
   document.addEventListener("visibilitychange", () => {
-    if (document.hidden) recordFocusEvent("tab");
+    if (document.hidden && focusMonitoringArmed) recordFocusEvent("tab");
     else { tabAway = false; if (attempt && !finalized && !submitPending) { tick(); renderQuestion(); syncProgress(); } }
   });
   // Browser password bubbles can blur the page immediately after sign-in.
@@ -197,7 +201,11 @@ async function startExam(e) {
   const fullscreenRequest = enterFullscreen();
   $("startBtn").disabled = true; $("startBtn").textContent = "Preparing your assessment…";
   try {
-    await fullscreenRequest;
+    const fullscreenReady = await fullscreenRequest;
+    if (!fullscreenReady || !document.fullscreenElement) {
+      message("Full screen is required before starting. Select Full screen above, allow it in your browser, then select Start / resume again. No new attempt has been started.", "closed");
+      return;
+    }
     const previous = recovery && recovery.attempt && recovery.attempt.roll === roll ? recovery : null;
     const data = await api({action: "startAttempt", rollNo: roll, name, batch, accessCode: $("accessCode").value, token: previous ? previous.attempt.token : ""});
     $("accessCode").value = "";

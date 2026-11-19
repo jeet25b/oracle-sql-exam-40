@@ -52,12 +52,14 @@ test('tab changes and window blur permanently lock only the current question and
  windowEvents.blur();documentEvents.visibilitychange();assert.equal(vm.runInContext('attempt.focusLosses',ctx),2);
  const saved=JSON.parse(local.get('oracle-sql-attempt-v2'));assert.deepEqual(saved.attempt.lockedQuestions,[1,2]);
 });
-test('startup password prompt blur does not lock question; tab departure still locks immediately',async()=>{
+test('startup browser focus and visibility transitions do not lock question before interaction',async()=>{
  const {ctx,windowEvents,documentEvents}=ui();await vm.runInContext('initialize()',ctx);
  vm.runInContext('deadline=Date.now()+600000;syncProgress=async()=>{};',ctx);
  windowEvents.blur();assert.equal(vm.runInContext('(attempt.lockedQuestions || []).length',ctx),0);
  assert.equal(vm.runInContext('attempt.focusLosses || 0',ctx),0);
  ctx.document.hidden=true;documentEvents.visibilitychange();
+ assert.equal(vm.runInContext('(attempt.lockedQuestions || []).length',ctx),0);
+ vm.runInContext('focusMonitoringArmed=true',ctx);documentEvents.visibilitychange();
  assert.equal(vm.runInContext('attempt.lockedQuestions.includes(1)',ctx),true);
  assert.equal(vm.runInContext('attempt.tabSwitches',ctx),1);
 });
@@ -69,6 +71,15 @@ test('fullscreen requests hide browser controls and denial leaves a retry availa
  assert.equal(await vm.runInContext('enterFullscreen()',ctx),false);assert.equal(elements.fullscreenBtn.textContent,'Enter full screen');
  ctx.document.fullscreenElement={};vm.runInContext('updateFullscreenButton()',ctx);assert.equal(elements.fullscreenBtn.disabled,true);
  ctx.document.fullscreenElement=null;vm.runInContext('updateFullscreenButton()',ctx);assert.equal(elements.fullscreenBtn.disabled,false);
+});
+test('fullscreen denial stops start before API reserves an attempt',async()=>{
+ const {ctx,elements}=ui();let calls=0;
+ vm.runInContext('attempt=null;enterFullscreen=async()=>false;',ctx);
+ ctx.api=async()=>{calls++;throw Error('should not reach API')};
+ for(const id of ['rollInput','nameInput','courseInput','branchInput','semInput','batchInput','groupInput']){elements[id]={value:'TEST'};}
+ await vm.runInContext('startExam({preventDefault(){}})',ctx);
+ assert.equal(calls,0);assert(elements.accessBanner.textContent.includes('Full screen is required'));
+ assert.equal(vm.runInContext('attempt',ctx),null);assert.equal(elements.startBtn.disabled,false);
 });
 test('blank question remains blank when locked and submitted exams do not acquire new locks',()=>{
  const {ctx}=ui();vm.runInContext('deadline=Date.now()+600000;currentIdx=0;attempt.currentIdx=2;syncProgress=async()=>{};lockCurrentQuestion();',ctx);
