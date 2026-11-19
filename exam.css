@@ -8,3 +8,17 @@
 @media(prefers-reduced-motion:reduce){*{transition:none!important;scroll-behavior:auto!important}}
 
 .pal-btn.locked:before{content:"L";position:absolute;left:2px;top:-7px;font-size:9px;font-weight:750;background:var(--surface);color:var(--muted);border:1px solid var(--line);border-radius:3px;padding:0 2px;line-height:1.3}.option:has(input:disabled){cursor:default;opacity:.75}
+
+/* Compact welcome area: text and exam facts share one row on wider screens. */
+#gateView .intro{display:grid;grid-template-columns:minmax(0,1fr) auto;column-gap:28px;row-gap:7px;align-items:center;padding-bottom:22px}
+#gateView .intro .eyebrow{grid-column:1;margin:0;font-size:10px;letter-spacing:1.6px}
+#gateView .intro h1{grid-column:1;margin:0;font-size:30px;line-height:1.25;letter-spacing:-.8px}
+#gateView .intro .lede{grid-column:1;margin:0;font-size:13px;line-height:1.6}
+#gateView .intro .exam-facts{grid-column:2;grid-row:1/4;align-self:center}
+#gateView .intro .exam-facts>div{padding:0 20px}
+#gateView .intro .exam-facts>div:first-child{padding-left:0}
+#gateView .intro .exam-facts>div:last-child{padding-right:0}
+#gateView .intro .exam-facts strong{font-size:21px}
+#gateView .intro .exam-facts span{font-size:11px}
+@media(max-width:950px){#gateView .intro{grid-template-columns:1fr;row-gap:8px}#gateView .intro .exam-facts{grid-column:1;grid-row:auto;margin-top:5px}}
+@media(max-width:420px){#gateView .intro h1{font-size:25px}#gateView .intro .exam-facts>div{padding:0 15px}#gateView .intro .exam-facts span{font-size:10px}}
