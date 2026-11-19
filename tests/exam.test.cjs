@@ -99,16 +99,26 @@ test('final submission check includes locked questions',()=>{
  const {ctx,elements}=ui();vm.runInContext('deadline=Date.now()+600000;attempt.lockedQuestions=[1,3];confirmSubmit()',ctx);
  assert(elements.confirmCounts.textContent.includes('Locked questions: 2'));assert.equal(elements.submitDialog.open,true);
 });
-test('Submit Question shows server feedback for one second then advances',async()=>{
+test('Submit Question advances without delay and submitted feedback remains on Previous, Next and number navigation',async()=>{
  const {ctx,elements}=ui();await vm.runInContext('initialize()',ctx);
  vm.runInContext('deadline=Date.now()+600000;syncProgress=async()=>{};',ctx);
- let release;ctx.setTimeout=(callback,ms)=>{if(ms===1000)release=callback;return 1};
+ ctx.setTimeout=(callback,ms)=>{assert.notEqual(ms,1000,'must not pause for feedback');return 1};
  ctx.api=async()=>({status:'ok',correctOption:1,selectedOption:0});
- const pending=vm.runInContext('submitCurrentQuestion()',ctx);await new Promise(r=>setImmediate(r));
- assert.equal(vm.runInContext('attempt.currentIdx',ctx),0);
+ await vm.runInContext('submitCurrentQuestion()',ctx);
+ assert.equal(vm.runInContext('attempt.currentIdx',ctx),1);
  assert(elements.questionPalette.children[0].className.includes('incorrect'));
- assert(elements.optionsContainer.children[0].classList);assert.equal(typeof release,'function');
- release();await pending;assert.equal(vm.runInContext('attempt.currentIdx',ctx),1);
+ // Track actual feedback classes applied during rendering.
+ const original=ctx.document.createElement;
+ ctx.document.createElement=()=>{const e=original();e.applied=[];e.classList.add=name=>e.applied.push(name);return e;};
+ elements.prevBtn.onclick();
+ assert(elements.optionsContainer.children[0].applied.includes('feedback-wrong'));
+ assert(elements.optionsContainer.children[1].applied.includes('feedback-correct'));
+ elements.nextBtn.onclick();elements.questionPalette.children[0].onclick();
+ assert(elements.optionsContainer.children[0].applied.includes('feedback-wrong'));
+ assert(elements.optionsContainer.children[1].applied.includes('feedback-correct'));
+ // A changed answer clears old feedback until submitted again.
+ elements.optionsContainer.children[1].children[0].onchange();
+ assert(elements.optionsContainer.children.every(label=>label.applied.length===0));
 });
 test('blank question remains blank when locked and submitted exams do not acquire new locks',()=>{
  const {ctx}=ui();vm.runInContext('deadline=Date.now()+600000;currentIdx=0;attempt.currentIdx=2;syncProgress=async()=>{};lockCurrentQuestion();',ctx);

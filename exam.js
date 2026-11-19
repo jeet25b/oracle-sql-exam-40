@@ -210,6 +210,7 @@ async function startExam(e) {
     deadline = attempt.deadline;
     attempt.lockedQuestions = attempt.lockedQuestions || [];
     finalized = false;
+    if (previous && previous.attempt.token === attempt.token) attempt.feedback = previous.attempt.feedback || {};
     if (data.result) { acceptResult(data.result); return; }
     // Merge the newest unsynced device changes only for the identical server attempt.
     if (previous && previous.attempt.token === attempt.token && !previous.finalized && previous.savedAt > (attempt.updatedAt || 0)) {
@@ -254,7 +255,6 @@ async function submitCurrentQuestion() {
     attempt.feedback[q.id]={correct:response.correctOption,selected:response.selectedOption};
     localSave();renderQuestion();
     $("submitQuestionBtn").textContent=response.selectedOption===response.correctOption?"Correct ✓":"Incorrect";
-    await new Promise(resolve=>setTimeout(resolve,1000));
     questionFeedbackBusy=false;
     if(!blocked() && attempt.questions[attempt.currentIdx].id===q.id){
       if(attempt.currentIdx<attempt.questions.length-1)navigate(1);else renderQuestion();
@@ -310,11 +310,11 @@ function renderQuestion(focus = false) {
     const letter = document.createElement("span"); letter.className = "option-letter"; letter.textContent = String.fromCharCode(65 + index) + "."; letter.setAttribute("aria-hidden", "true");
     const text = document.createElement("span"); text.textContent = option;
     const feedback=attempt.feedback && attempt.feedback[q.id];
-    if(questionFeedbackBusy && feedback){
+    if(feedback && feedback.selected===attempt.answers[q.id]){
       if(index===feedback.correct)label.classList.add("feedback-correct");
       else if(index===feedback.selected)label.classList.add("feedback-wrong");
     }
-    radio.onchange = () => { if (questionBlocked()) return; if(attempt.feedback)delete attempt.feedback[q.id]; attempt.answers[q.id] = index; $("submitQuestionBtn").textContent = "Submit Question"; changed(); updatePalette(); };
+    radio.onchange = () => { if (questionBlocked()) return; if(attempt.feedback)delete attempt.feedback[q.id]; attempt.answers[q.id] = index; $("submitQuestionBtn").textContent = "Submit Question"; changed(); renderQuestion(); };
     label.append(radio, letter, text); options.appendChild(label);
   });
   $("prevBtn").disabled = attempt.currentIdx === 0 || submitPending;
