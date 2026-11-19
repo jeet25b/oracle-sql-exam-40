@@ -6,6 +6,7 @@ const STORAGE_KEY = "oracle-sql-attempt-v2";
 const $ = id => document.getElementById(id);
 let attempt = null, deadline = 0, clockOffset = 0, timer = null, saveTimer = null;
 let sending = false, finalized = false, syncing = false, resave = false, revision = 0;
+let needsSessionVerification = false;
 let result = null, submitPending = false, lastSync = 0, warningLevel = 0, recovery = null;
 function setVisible(id, visible) { $(id).classList.toggle("hidden", !visible); }
 function message(text, type = "") { $("accessBanner").textContent = text; $("accessBanner").className = "notice " + type; }
@@ -100,6 +101,10 @@ async function initialize() {
   $("submitExamBtn").onclick = confirmSubmit;
   $("submitDialog").addEventListener("close", () => { if ($("submitDialog").returnValue === "submit") submitExam(); });
   $("retryBtn").onclick = () => submitExam();
+  $("verifySessionBtn").onclick = openSessionVerification;
+  $("sessionForm").onsubmit = recoverSession;
+  $("cancelSessionBtn").onclick = () => $("sessionDialog").close();
+  $("sessionDialog").addEventListener("close", () => { $("sessionCode").value = ""; });
   $("receiptBtn").onclick = downloadReceipt;
   window.addEventListener("online", () => { if (submitPending) submitExam(); else syncProgress(); });
   window.addEventListener("offline", () => { if (attempt && !finalized) $("saveStatus").textContent = "Offline · progress retained on this device"; });
@@ -291,7 +296,42 @@ function confirmSubmit() {
   $("submitDialog").returnValue = "";
   $("submitDialog").showModal();
 }
+function openSessionVerification() {
+  $("sessionCode").value = "";
+  setVisible("sessionError", false);
+  if (!$("sessionDialog").open) $("sessionDialog").showModal();
+}
+async function recoverSession(event) {
+  event.preventDefault();
+  if (!attempt || sending || finalized) return;
+  sending = true; $("recoverSessionBtn").disabled = true;
+  setVisible("sessionError", false);
+  try {
+    const data = await api({action:"recoverAttempt",rollNo:attempt.roll,accessCode:$("sessionCode").value,
+      startedAt:attempt.startedAt,questionIds:attempt.questions.map(q=>q.id)});
+    const restored = data.attempt;
+    if (!restored || restored.startedAt !== attempt.startedAt || JSON.stringify(restored.questions.map(q=>q.id)) !== JSON.stringify(attempt.questions.map(q=>q.id))) {
+      throw new Error("The server returned a different attempt. Your saved answers are retained. Please contact your teacher.");
+    }
+    attempt.token = restored.token;
+    deadline = restored.deadline; attempt.deadline = deadline;
+    clockOffset = data.serverNow - Date.now();
+    attempt.lockedQuestions = [...new Set([...(attempt.lockedQuestions || []), ...(restored.lockedQuestions || [])])];
+    for (const id of restored.lockedQuestions || []) {
+      if (restored.answers[id] === undefined) delete attempt.answers[id]; else attempt.answers[id] = restored.answers[id];
+    }
+    needsSessionVerification = false;
+    localSave(); $("sessionDialog").close(); $("sessionCode").value = "";
+    if (data.result) { acceptResult(data.result); return; }
+    sending = false;
+    await submitExam();
+  } catch (err) {
+    $("sessionError").textContent = err.message;
+    setVisible("sessionError", true);
+  } finally { sending = false; $("recoverSessionBtn").disabled = false; }
+}
 async function submitExam() {
+  if (needsSessionVerification) { openSessionVerification(); return; }
   if (!attempt || finalized || sending) return;
   sending = true; submitPending = true;
   clearInterval(timer); clearTimeout(saveTimer);
@@ -300,16 +340,22 @@ async function submitExam() {
   $("resultHeading").textContent = "Saving your assessment…";
   $("resultSummary").textContent = "Keep this page open while your submission is confirmed.";
   setVisible("retryBtn", false);
+  setVisible("verifySessionBtn", false);
   try {
     const data = await api({action: "submit", rollNo: attempt.roll, token: attempt.token, ...snapshot()});
     acceptResult(data.result);
   } catch (err) {
     $("resultHeading").textContent = "Submission awaiting confirmation";
-    $("resultSummary").textContent = `${err.message} Your answers are retained on this device. Retry to confirm the same attempt; a duplicate result will not be created.`;
-    setVisible("retryBtn", true); localSave();
+    needsSessionVerification = /session could not be verified|session.*invalid|invalid.*session/i.test(err.message);
+    $("resultSummary").textContent = needsSessionVerification
+      ? "Your saved session needs verification. Your answers remain on this device. Select Verify session and submit, then enter your student access code."
+      : `${err.message} Your answers are retained on this device. Retry to confirm the same attempt; a duplicate result will not be created.`;
+    setVisible("retryBtn", !needsSessionVerification);
+    setVisible("verifySessionBtn", needsSessionVerification); localSave();
   } finally { sending = false; }
 }
 function acceptResult(value) {
+  needsSessionVerification = false;
   result = value; finalized = true; submitPending = false;
   clearInterval(timer); clearTimeout(saveTimer);
   // Use the server's accepted answers, including its deadline cutoff.
@@ -320,6 +366,7 @@ function showResults() {
   setVisible("gateView", false); setVisible("examView", false); setVisible("timerDisplay", false); setVisible("resultView", true);
   $("sessionBadge").textContent = finalized ? "Assessment submitted" : "Submission pending";
   $("resultIdentity").textContent = `${attempt.name} · ${attempt.roll} · ${attempt.batch}`;
+  setVisible("verifySessionBtn", !finalized && needsSessionVerification);
   setVisible("examSubmitActions", false);
   $("resultNavigator").appendChild($("navigatorCard"));
   buildPalette(); updatePalette();

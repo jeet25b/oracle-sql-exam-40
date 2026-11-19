@@ -38,7 +38,11 @@ await evaluate('document.getElementById("submitExamBtn").click()');assert(await 
 await evaluate(`window.qaOriginalFetch=window.fetch;window.fetch=async(...args)=>{if(args[1]?.body&&JSON.parse(args[1].body).action==='submit')throw new TypeError('Simulated connection failure');return window.qaOriginalFetch(...args)};document.getElementById('confirmFinalBtn').click()`);
 await wait('document.getElementById("resultHeading").textContent.includes("awaiting confirmation")');
 assert.equal(await evaluate('document.querySelectorAll("#resultNavigator .incorrect").length'),0);assert(await evaluate('!document.getElementById("retryBtn").classList.contains("hidden")'));
-await shot('mobile-pending');await evaluate('window.fetch=window.qaOriginalFetch;document.getElementById("retryBtn").click()');await wait('document.getElementById("resultHeading").textContent.includes("successfully")');
+await shot('mobile-pending');assert(await evaluate('document.getElementById("receiptBtn").classList.contains("hidden")'));
+await evaluate('window.fetch=window.qaOriginalFetch;attempt.token="stale-test-session";document.getElementById("retryBtn").click()');
+await wait('!document.getElementById("verifySessionBtn").classList.contains("hidden")');
+await evaluate('document.getElementById("verifySessionBtn").click();document.getElementById("sessionCode").value="test-code-001";document.getElementById("sessionForm").requestSubmit()');
+await wait('document.getElementById("resultHeading").textContent.includes("successfully")');
 assert.equal(await evaluate('document.querySelectorAll("#resultNavigator .pal-btn").length'),40);assert(await evaluate('document.documentElement.scrollWidth<=innerWidth'));await shot('mobile-results');
 await send('Emulation.setDeviceMetricsOverride',{width:1440,height:1100,deviceScaleFactor:1,mobile:false});await shot('desktop-results');
 assert(!await evaluate('document.body.innerText.includes("Â")'),'UTF-8 punctuation');assert.equal(errors.length,0,errors.join('\n'));console.log('PASS: desktop/mobile layouts, accessible radio interaction, hidden correctness, flags, online save, refresh recovery, confirmation and final results. Screenshots: .preview/*.png');

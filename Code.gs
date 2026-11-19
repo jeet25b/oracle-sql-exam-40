@@ -45,6 +45,17 @@ function doPost(e) {
     const roll = normalizeRoll(data.rollNo);
     if (!/^[A-Z0-9][A-Z0-9._\/-]{2,59}$/.test(roll)) throw new Error("Enter a valid university roll number (3–60 characters).");
     if (data.action === "startAttempt") return jsonResponse(startAttempt(data, roll));
+    if (data.action === "recoverAttempt") {
+      verifyStudent(roll, data.accessCode);
+      const saved = findAttempt(roll);
+      if (!saved) throw new Error("The original attempt is missing from the server. Ask your teacher to restore its Attempts record. Your device answers have not been deleted.");
+      const value = saved.value;
+      const ids = value.questions.map(q => q.id);
+      if (value.startedAt !== data.startedAt || JSON.stringify(ids) !== JSON.stringify(data.questionIds)) {
+        throw new Error("The server holds a different attempt for this roll number. Ask your teacher to restore the original Attempts record. Saved answers cannot be transferred to a different exam.");
+      }
+      return jsonResponse({status:"ok",attempt:publicAttempt(value),result:value.result || recordedResult(roll),serverNow:Date.now()});
+    }
     if (data.action !== "saveAttempt" && data.action !== "submit") throw new Error("Unknown action.");
     const stored = findAttempt(roll);
     if (!stored || !data.token || stored.value.token !== data.token) throw new Error("Your session could not be verified. Sign in again with your access code.");

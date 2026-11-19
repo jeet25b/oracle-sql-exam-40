@@ -81,3 +81,10 @@ Local changes do not update the live GitHub Pages site or the existing Apps Scri
    Run: node tests/exam.test.cjs
    Tests use an in-memory spreadsheet/API simulation; they never access real student records.
    Perform one staging deployment test with a test roster before opening the real exam.
+
+SESSION VERIFICATION RECOVERY
+   If a pending submission reports an invalid session, use Verify session and submit and enter
+   the student access code again. This reconnects only to the same original attempt; it cannot
+   create another attempt, reset the timer, or transfer answers to a different question set.
+   Missing/replaced Attempts records need faculty restoration. Do not delete saved browser data
+   or Attempts rows to resolve submission errors. Deploy Code.gs and the website together.

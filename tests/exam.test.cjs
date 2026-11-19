@@ -2,7 +2,7 @@ const test=require('node:test'),assert=require('node:assert/strict'),fs=require(
 const root=path.join(__dirname,'..'),html=fs.readFileSync(path.join(root,'index.html'),'utf8'),js=fs.readFileSync(path.join(root,'exam.js'),'utf8');
 function ui(){
  const elements={},windowEvents={},documentEvents={};
- function element(){return {children:[],textContent:'',value:'',className:'',attributes:{},classList:{toggle(){},add(){},remove(){}},setAttribute(k,v){this.attributes[k]=v},getAttribute(k){return this.attributes[k]},removeAttribute(k){delete this.attributes[k]},replaceChildren(){this.children=[]},appendChild(e){this.children.push(e);return e},append(...e){this.children.push(...e)},addEventListener(){},focus(){}};}
+ function element(){return {children:[],textContent:'',value:'',className:'',attributes:{},classList:{toggle(){},add(){},remove(){}},setAttribute(k,v){this.attributes[k]=v},getAttribute(k){return this.attributes[k]},removeAttribute(k){delete this.attributes[k]},replaceChildren(){this.children=[]},appendChild(e){this.children.push(e);return e},append(...e){this.children.push(...e)},addEventListener(){},focus(){},close(){this.open=false},showModal(){this.open=true}};}
  const document={documentElement:{dataset:{}},getElementById:id=>elements[id]??=(element()),createElement:()=>element(),addEventListener(name,handler){documentEvents[name]=handler}};
  const local=new Map();const ctx=vm.createContext({document,window:{addEventListener(name,handler){windowEvents[name]=handler}},navigator:{onLine:true},localStorage:{setItem:(k,v)=>local.set(k,v),getItem:k=>local.get(k)},setTimeout:()=>1,clearTimeout(){},setInterval:()=>1,clearInterval(){},AbortController,Date,Blob,URL,console});
  vm.runInContext(js,ctx);vm.runInContext(`attempt={roll:'TEST001',name:'Alex',batch:'B.Tech-CSE-3-A-1',token:'token',questions:[{id:1,ans:0,options:['A','B']},{id:2,ans:1,options:['A','B']},{id:3,ans:0,options:['A','B']}],answers:{1:0,2:0},flags:[2],currentIdx:0};buildPalette();`,ctx);
@@ -64,6 +64,14 @@ test('old POST action errors explain deployment rather than showing a raw API er
  const {ctx}=ui();ctx.fetch=async()=>({ok:true,json:async()=>({status:'error',message:'Invalid POST action'})});
  await assert.rejects(vm.runInContext('api({action:"startAttempt"})',ctx),/deploy the latest Apps Script/);
 });
+test('invalid session offers verification instead of retrying the same token',async()=>{
+ const {ctx,elements}=ui();
+ vm.runInContext('api=async()=>{throw new Error("Your session could not be verified. Sign in again with your access code.")}',ctx);
+ await vm.runInContext('submitExam()',ctx);
+ assert.equal(vm.runInContext('needsSessionVerification',ctx),true);
+ assert(elements.resultSummary.textContent.includes('Verify session and submit'));
+ await vm.runInContext('submitExam()',ctx);assert.equal(elements.sessionDialog.open,true);
+});
 if(!process.argv.includes('--frontend-only')){
  const {createBackend}=require('./harness.cjs');
  const start=(b,roll='TEST001',code='test-code-001')=>b.post({action:'startAttempt',rollNo:roll,name:'Untrusted name',batch:'B.Tech-CSE-3-A-1',accessCode:code});
@@ -114,6 +122,15 @@ if(!process.argv.includes('--frontend-only')){
   save({});resumed=start(b).attempt;assert.equal(resumed.answers[first],0);assert.equal(resumed.lockedQuestions.length,2);
   const r=b.post({action:'submit',rollNo:a.roll,token:a.token,answers:{[first]:1,[blank]:1},lockedQuestions:[]});
   assert.equal(r.result.details[0].selected,0);assert.equal(r.result.details[1].status,'unattempted');
+ });
+
+ test('session recovery requires access code, preserves the attempt and does not create another',()=>{
+  const b=createBackend(),a=start(b).attempt;
+  const request={action:'recoverAttempt',rollNo:a.roll,accessCode:'wrong',startedAt:a.startedAt,questionIds:a.questions.map(q=>q.id)};
+  assert.equal(b.post(request).status,'error');request.accessCode='test-code-001';
+  const recovered=b.post(request);assert.equal(recovered.status,'ok');assert.equal(recovered.attempt.token,a.token);assert.equal(recovered.attempt.deadline,a.deadline);assert.equal(b.sheets.get('Attempts').rows.length,2);
+  request.startedAt++;assert.equal(b.post(request).status,'error');assert.equal(b.sheets.get('Attempts').rows.length,2);
+  request.rollNo='TEST002';request.accessCode='test-code-002';assert.equal(b.post(request).status,'error');assert.equal(b.sheets.get('Attempts').rows.length,2);
  });
 
 }
