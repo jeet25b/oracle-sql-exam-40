@@ -110,3 +110,9 @@ FOCUS MONITORING IN RESULTS
    LockedQuestions records how many question answers were locked. Counts autosave and resume.
    Deploy updated exam.js AND Code.gs together. Historical missing focus counts stay blank;
    they cannot be reconstructed from a total score or a historical combined event count.
+
+BALANCED ANSWER POSITIONS
+   New 40-question attempts contain exactly 10 correct options A, 10 B, 10 C and 10 D.
+   The position schedule and distractors are shuffled; the server stores the remapped key.
+   Existing attempts keep their original option order and answer keys on resume.
+   Redeploy Code.gs to enable this rule for newly started attempts.

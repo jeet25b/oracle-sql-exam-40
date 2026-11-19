@@ -116,9 +116,22 @@ function startAttempt(data, roll) {
   if(!name || name.length>120 || !batch || batch.length>180) throw new Error("Complete your name and academic details.");
   const attempt={roll:roll,name:name,batch:batch,token:Utilities.getUuid(),startedAt:now,
     deadline:Math.min(now+win.durationMinutes*60000,new Date(win.closeISO).getTime()),
-    updatedAt:now,questions:pool.slice(0,EXAM_SIZE),answers:{},flags:[],lockedQuestions:[],currentIdx:0,tabSwitches:0,focusLosses:0,result:null};
+    updatedAt:now,questions:balanceAnswerPositions(pool.slice(0,EXAM_SIZE)),answers:{},flags:[],lockedQuestions:[],currentIdx:0,tabSwitches:0,focusLosses:0,result:null};
   const sheet=attemptSheet();sheet.appendRow([roll,attempt.token,JSON.stringify(attempt)]);SpreadsheetApp.flush();
   return {status:"ok",attempt:publicAttempt(attempt),serverNow:now};
+}
+// Assign a shuffled, exactly balanced answer-position schedule per new attempt.
+function balanceAnswerPositions(questions){
+  if(questions.length!==40)throw new Error("Balanced exams require exactly 40 questions.");
+  const positions=Array.from({length:40},(_,i)=>i%4);
+  for(let i=positions.length-1;i>0;i--){const j=Math.floor(Math.random()*(i+1));[positions[i],positions[j]]=[positions[j],positions[i]];}
+  return questions.map((q,index)=>{
+    if(!Array.isArray(q.options) || q.options.length!==4 || !Number.isInteger(q.ans) || q.ans<0 || q.ans>3)throw new Error("Each exam question must have four options and a valid answer key.");
+    const distractors=q.options.filter((_,i)=>i!==q.ans);
+    for(let i=distractors.length-1;i>0;i--){const j=Math.floor(Math.random()*(i+1));[distractors[i],distractors[j]]=[distractors[j],distractors[i]];}
+    const options=distractors.slice();options.splice(positions[index],0,q.options[q.ans]);
+    return Object.assign({},q,{options:options,ans:positions[index]});
+  });
 }
 function publicAttempt(attempt){
   return {roll:attempt.roll,name:attempt.name,batch:attempt.batch,token:attempt.token,startedAt:attempt.startedAt,deadline:attempt.deadline,updatedAt:attempt.updatedAt || attempt.startedAt,

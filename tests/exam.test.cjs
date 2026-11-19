@@ -216,4 +216,20 @@ if(!process.argv.includes('--frontend-only')){
   const record=b.get({action:'results',key:'test-admin-key'}).results[0];assert.equal(record.focusLosses,5);assert.equal(record.tabSwitches,3);
  });
 
+ test('new exams have exactly 10 correct answers in each option and preserve question meanings',()=>{
+  for(let run=0;run<12;run++){
+   const b=createBackend(),data=start(b);assert.equal(data.status,'ok');
+   const stored=JSON.parse(b.sheets.get('Attempts').rows[1][2]);const totals=[0,0,0,0];
+   for(const q of stored.questions){
+    totals[q.ans]++;b.ctx.questionId=q.id;
+    const canonical=JSON.parse(vm.runInContext('JSON.stringify(MASTER_QUESTION_BANK.find(q=>q.id===questionId))',b.ctx));
+    assert.equal(q.options[q.ans],canonical.options[canonical.ans]);assert.deepEqual(q.options.slice().sort(),canonical.options.slice().sort());
+   }
+   assert.deepEqual(totals,[10,10,10,10]);
+   assert.deepEqual(start(b).attempt.questions,data.attempt.questions,'resume must retain option order');
+   const answers=Object.fromEntries(stored.questions.map(q=>[q.id,q.ans]));
+   assert.equal(b.post({action:'submit',rollNo:stored.roll,token:stored.token,answers}).result.score,40);
+  }
+ });
+
 }

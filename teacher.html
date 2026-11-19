@@ -146,11 +146,12 @@
               <th>Correct</th>
               <th>Wrong</th>
               <th>Skipped</th>
+              <th>Locked Questions</th>
               <th>Question-Wise Breakdown</th>
             </tr>
           </thead>
           <tbody id="resultsBody">
-            <tr><td colspan="9" style="text-align:center; color: var(--muted);">Loading records...</td></tr>
+            <tr><td colspan="10" style="text-align:center; color: var(--muted);">Loading records...</td></tr>
           </tbody>
         </table>
       </div>
@@ -273,7 +274,7 @@
     );
 
     if (filtered.length === 0) {
-      tbody.innerHTML = `<tr><td colspan="9" style="text-align:center; color: var(--muted);">No records found.</td></tr>`;
+      tbody.innerHTML = `<tr><td colspan="10" style="text-align:center; color: var(--muted);">No records found.</td></tr>`;
       return;
     }
 
@@ -287,6 +288,7 @@
         <td style="color: var(--green); font-weight:600;">${r.correct}</td>
         <td style="color: var(--red); font-weight:600;">${r.wrong}</td>
         <td style="color: var(--muted);">${r.unattempted}</td>
+        <td>${escapeHtml(r.lockedQuestions === "" || r.lockedQuestions == null ? "—" : r.lockedQuestions)}</td>
         <td><button class="btn-outline" style="padding: 5px 10px; font-size: 0.82rem;" onclick="openModal(${idx})">View Q1–Q40</button></td>
       </tr>
     `).join("");
@@ -296,7 +298,7 @@
     const r = allResults[index];
     document.getElementById("modalTitle").textContent = `${r.name} (${r.rollNo}) — Question-Wise Marks`;
     document.getElementById("modalSubtitle").textContent =
-      `Score: ${r.score}/${r.maxMarks} | Correct: ${r.correct} | Wrong: ${r.wrong} | Unattempted: ${r.unattempted}`;
+      `Score: ${r.score}/${r.maxMarks} | Correct: ${r.correct} | Wrong: ${r.wrong} | Unattempted: ${r.unattempted} | Locked: ${r.lockedQuestions === "" || r.lockedQuestions == null ? "Not recorded" : r.lockedQuestions}`;
 
     const grid = document.getElementById("modalQGrid");
     if (r.details && r.details.length > 0) {
@@ -332,7 +334,8 @@
         "Max Marks": r.maxMarks,
         "Correct": r.correct,
         "Wrong": r.wrong,
-        "Unattempted": r.unattempted
+        "Unattempted": r.unattempted,
+        "Locked Questions": r.lockedQuestions ?? ""
       };
       (r.qMarks || []).forEach(q => {
         base[q.q] = q.mark;
