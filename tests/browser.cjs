@@ -42,6 +42,12 @@ await evaluate('document.getElementById("nextStudentBtn").click()');await wait('
 await send('Page.navigate',{url:'http://127.0.0.1:4173/teacher.html'});await wait('document.getElementById("passkeyInput")!==null');
 await evaluate('document.getElementById("passkeyInput").value="test-admin-key";authenticate()');await wait('allResults.length===1');
 assert((await evaluate('document.getElementById("resultsBody").innerText')).includes('TEST001'));await evaluate('sortResults("score");openModal(0)');await shot('teacher-detail');
+await evaluate('closeModal();loadQuestionBank()');await wait('facultyQuestions.length===72');
+assert.equal(await evaluate('document.querySelectorAll(".bank-question").length'),72);
+assert.equal(await evaluate('document.querySelectorAll(".bank-option.correct").length'),72);
+await evaluate('openQuestionEditor(facultyQuestions[0].id);document.getElementById("editStem").value+=" Faculty browser test";document.getElementById("questionEditForm").requestSubmit()');
+await wait('document.getElementById("bankMessage").textContent.includes("Question updated")');
+assert(await evaluate('facultyQuestions[0].q.endsWith("Faculty browser test")'));await shot('faculty-question-bank');
 assert.equal(errors.length,0,errors.join('\n'));console.log('PASS: desktop/mobile layouts, fullscreen API simulation, submit/advance without correctness, seen locks, automatic refresh resume, final Results, next student, teacher login/sort/detail. No runtime exceptions.');
 await send('Browser.close');ws.close();
 })().catch(e=>{console.error(e);process.exitCode=1;process.exit(1)});

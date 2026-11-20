@@ -345,10 +345,30 @@ if(!process.argv.includes('--frontend-only')){
   assert(a.questions.every(q=>!('explanation' in q)&&!('ans' in q)&&!('source' in q)));
  });
  test('combined Apps Script deployment contains the same bank and generates 40 questions',()=>{
-  const combined=fs.readFileSync(path.join(root,'AppsScript_Complete.txt'),'utf8');const ctx=vm.createContext({console:{log(){}}});
+  const combined=fs.readFileSync(path.join(root,'AppsScript_Complete.txt'),'utf8');const ctx=vm.createContext({console:{log(){}},SpreadsheetApp:{getActiveSpreadsheet:()=>({getSheetByName:()=>null})}});
   vm.runInContext(combined,ctx);const report=vm.runInContext('checkQuestionBank()',ctx);
   assert.equal(report.eligible,72);assert.equal(report.selected,40);assert.equal(report.unique,40);
   assert.deepEqual(Array.from(report.answerPositions),[10,10,10,10]);
+ });
+
+ test('faculty question bank is protected and updates persist without changing existing attempts',()=>{
+  const b=createBackend(),a=start(b).attempt;
+  assert.equal(b.post({action:'questionBank',key:'wrong'}).status,'error');
+  const bank=b.post({action:'questionBank',key:'test-admin-key'}).questions;assert.equal(bank.length,72);assert(bank.every(q=>Number.isInteger(q.ans)));
+  const old=a.questions[0],q=bank.find(q=>q.id===old.id);const updated={...q,q:q.q+' Faculty revision',ans:(q.ans+1)%4};
+  assert.equal(b.post({action:'updateQuestion',key:a.token,question:updated,revision:0}).status,'error');
+  const saved=b.post({action:'updateQuestion',key:'test-admin-key',question:updated,revision:0});assert.equal(saved.status,'ok');assert.equal(saved.question.revision,1);
+  assert.equal(b.post({action:'questionBank',key:'test-admin-key'}).questions.find(x=>x.id===q.id).q,updated.q);
+  assert.equal(start(b).attempt.questions[0].q,old.q);assert.equal(b.sheets.get('QuestionEdits').rows.length,2);
+  assert.equal(b.post({action:'updateQuestion',key:'test-admin-key',question:updated,revision:0}).status,'error');
+ });
+ test('faculty edits reject duplicate options, invalid answer keys and impossible exam coverage',()=>{
+  const b=createBackend();const bank=b.post({action:'questionBank',key:'test-admin-key'}).questions;const q=bank[0];
+  const save=question=>b.post({action:'updateQuestion',key:'test-admin-key',question,revision:0});
+  assert.equal(save({...q,options:['Same','Same','C','D']}).status,'error');assert.equal(save({...q,ans:4}).status,'error');
+  const dml=bank.filter(q=>q.category==='DML');for(let i=0;i<4;i++)assert.equal(save({...dml[i],important:false}).status,'ok');
+  assert.equal(save({...dml[4],important:false}).status,'error');
+  assert.equal(b.post({action:'questionBank',key:'test-admin-key'}).questions.filter(q=>q.category==='DML'&&q.important).length,6);
  });
 
 }

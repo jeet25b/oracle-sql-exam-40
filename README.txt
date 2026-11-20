@@ -166,3 +166,17 @@ SOURCE CLARIFICATIONS
    SQL behavior was reviewed against documentation; no live Oracle database was available
    to execute all question examples. Automated tests validate structure, coverage, grading,
    option shuffling, privacy and deployment consistency.
+
+FACULTY WEBSITE QUESTION EDITING
+   Publish teacher.html and deploy the latest AppsScript_Complete.txt in Code.gs (remove
+   the separate QuestionBank.gs first), or deploy the separate latest Code.gs plus bank.
+   Sign in as faculty, then select Load / refresh all questions under Faculty Question Bank.
+   Each question displays all four choices, its correct option, explanation and slide source.
+   Edit question allows stem/options/correct option/category/topic/explanation/enabled status.
+   The private QuestionEdits sheet is created automatically for overrides and revisions.
+   Do not publish or delete QuestionEdits. Edits survive redeployment; keep IDs stable in
+   future bank updates. Replacing the base bank with different IDs can orphan old edits.
+   Existing student Attempts keep their stored question text, options and key unchanged.
+   New attempts use the merged edited bank. Invalid coverage changes are rejected.
+   A stale edit is rejected to prevent overwriting another faculty member's changes.
+   Faculty edits are authenticated server-side. Source decks do not change automatically.

@@ -75,6 +75,8 @@
       max-width: 850px; width: 100%; max-height: 85vh; overflow-y: auto; padding: 24px;
     }
   .sort-heading{border:0;background:transparent;color:inherit;font:inherit;font-weight:700;padding:0;text-align:left;cursor:pointer;white-space:nowrap}.sort-heading:focus-visible{outline:2px solid var(--accent);outline-offset:4px}.sort-heading:hover{background:transparent;text-decoration:underline}
+
+.bank-toolbar{display:flex;align-items:center;gap:12px;flex-wrap:wrap}.bank-toolbar input{max-width:350px}.bank-question{border:1px solid var(--border);padding:18px;border-radius:10px;margin:14px 0}.bank-question h3{white-space:pre-wrap;overflow-wrap:anywhere;font-size:16px}.bank-option{padding:8px 12px;margin:6px 0;border-radius:6px;white-space:pre-wrap;overflow-wrap:anywhere}.bank-option.correct{background:rgba(34,197,94,.12);color:#9be3b5;border:1px solid #22c55e}.bank-option.distractor{border:1px solid var(--border);color:var(--muted)}.bank-meta{font-size:12px;color:var(--muted)}#questionEditor{width:min(760px,calc(100% - 24px));max-height:90vh;overflow:auto;background:var(--card);color:var(--text);border:1px solid var(--border);border-radius:14px;padding:24px}#questionEditor::backdrop{background:#000a}#questionEditor textarea,#questionEditor select{box-sizing:border-box;width:100%;background:#0f172a;color:var(--text);border:1px solid var(--border);border-radius:6px;padding:10px;font:inherit;margin-bottom:12px}.enable-question{display:flex;align-items:center;gap:10px}.enable-question input{width:auto}
 </style>
 </head>
 <body>
@@ -126,6 +128,12 @@
       </div>
     </div>
 
+    <section class="card" aria-labelledby="bankTitle">
+      <h2 id="bankTitle">Faculty Question Bank</h2>
+      <p>View correct answers and distractors, then edit questions for future attempts. Current student attempts remain unchanged.</p>
+      <div class="bank-toolbar"><button class="btn-primary" id="loadBankBtn" onclick="loadQuestionBank()">Load / refresh all questions</button><input id="bankSearch" type="search" placeholder="Search ID, question or topic" oninput="renderQuestionBank()" aria-label="Search question bank"></div>
+      <p id="bankMessage" role="status"></p><div id="bankList"></div>
+    </section>
     <!-- Results Table -->
     <div class="card">
       <div style="display: flex; justify-content: space-between; align-items: center; flex-wrap: wrap; gap: 10px;">
@@ -162,6 +170,19 @@
   </div>
 </div>
 
+<dialog id="questionEditor" aria-labelledby="editorTitle"><form id="questionEditForm" onsubmit="saveQuestionEdit(event)">
+<h2 id="editorTitle">Edit question</h2><p>Changes apply to new attempts only.</p>
+<label for="editStem">Question</label><textarea id="editStem" rows="4" maxlength="4000" required></textarea>
+<div class="grid-2"><div><label for="editCategory">Category</label><select id="editCategory"><option>DDL</option><option>DML</option><option>DQL</option></select></div><div><label for="editTopic">Topic</label><input id="editTopic" maxlength="80" required list="bankTopics"><datalist id="bankTopics"><option>Data Types</option><option>Constraints</option><option>DDL</option><option>DML</option><option>DQL</option><option>Subqueries</option><option>Joins</option></datalist></div></div>
+<label for="editA">Option A</label><textarea id="editA" rows="2" maxlength="1500" required></textarea>
+<label for="editB">Option B</label><textarea id="editB" rows="2" maxlength="1500" required></textarea>
+<label for="editC">Option C</label><textarea id="editC" rows="2" maxlength="1500" required></textarea>
+<label for="editD">Option D</label><textarea id="editD" rows="2" maxlength="1500" required></textarea>
+<label for="editCorrect">Correct option</label><select id="editCorrect"><option value="0">A</option><option value="1">B</option><option value="2">C</option><option value="3">D</option></select>
+<label for="editExplanation">Faculty explanation</label><textarea id="editExplanation" rows="3" maxlength="4000"></textarea>
+<label class="enable-question"><input id="editEnabled" type="checkbox"> Include in new exams</label>
+<p id="editMessage" role="alert"></p><div class="bank-toolbar"><button id="saveQuestionBtn" class="btn-success" type="submit">Save question</button><button id="cancelEditBtn" class="btn-outline" type="button" onclick="document.getElementById('questionEditor').close()">Cancel</button></div>
+</form></dialog>
 <!-- Question-Wise Modal -->
 <div id="detailModal" class="modal-backdrop hidden" onclick="if(event.target===this) closeModal()">
   <div class="modal">
@@ -178,6 +199,52 @@
   const SCRIPT_URL = "https://script.google.com/macros/s/AKfycbyJvfaFqcPD85SF4XJ_M7AcGe7KLkCc62-fL5Fk-G3dOqXjWGeXo4LtsseAY2PidzWGFA/exec"; // <-- Paste your Web App URL here
   function escapeHtml(value) {
     return String(value ?? "").replace(/[&<>"']/g, char => ({"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;","'":"&#39;"}[char]));
+  }
+  let facultyQuestions=[],editingQuestion=null,bankLoading=false,questionSaving=false;
+  async function facultyBankApi(payload){
+    const response=await fetch(SCRIPT_URL,{method:"POST",body:JSON.stringify({...payload,key:adminKey})});
+    if(!response.ok)throw new Error("The server could not be reached.");
+    const data=await response.json();if(data.status!=="ok")throw new Error(data.message || "Question bank request failed.");return data;
+  }
+  async function loadQuestionBank(){
+    if(bankLoading)return;bankLoading=true;
+    document.getElementById("loadBankBtn").disabled=true;document.getElementById("bankMessage").textContent="Loading private question bank…";
+    try{const data=await facultyBankApi({action:"questionBank"});facultyQuestions=data.questions;renderQuestionBank();}
+    catch(err){document.getElementById("bankMessage").textContent=err.message;}
+    finally{bankLoading=false;document.getElementById("loadBankBtn").disabled=false;}
+  }
+  function renderQuestionBank(){
+    const query=document.getElementById("bankSearch").value.trim().toLowerCase();
+    const visible=facultyQuestions.filter(q=>[q.id,q.q,q.topic,q.category].join(" ").toLowerCase().includes(query));
+    const list=document.getElementById("bankList");list.replaceChildren();
+    document.getElementById("bankMessage").textContent=visible.length+" of "+facultyQuestions.length+" questions · Green = correct option; other options are incorrect distractors.";
+    visible.forEach(q=>{
+      const card=document.createElement("article");card.className="bank-question";
+      const meta=document.createElement("p");meta.className="bank-meta";meta.textContent="ID "+q.id+" · "+q.category+" / "+q.topic+" · Revision "+q.revision+" · "+(q.important?"Enabled":"Excluded");
+      const title=document.createElement("h3");title.textContent=q.q;card.append(meta,title);
+      q.options.forEach((text,i)=>{const option=document.createElement("div");option.className="bank-option "+(i===q.ans?"correct":"distractor");option.textContent=String.fromCharCode(65+i)+". "+text+(i===q.ans?" — Correct":" — Incorrect");card.appendChild(option);});
+      const why=document.createElement("p");why.textContent="Explanation: "+(q.explanation || "Not provided");card.appendChild(why);
+      if(q.source){const source=document.createElement("p");source.className="bank-meta";source.textContent=q.source.file+" · Slides "+q.source.slides.join(", ");card.appendChild(source);}
+      const edit=document.createElement("button");edit.type="button";edit.className="btn-outline";edit.textContent="Edit question";edit.onclick=()=>openQuestionEditor(q.id);card.appendChild(edit);list.appendChild(card);
+    });
+  }
+  function openQuestionEditor(id){
+    editingQuestion=facultyQuestions.find(q=>q.id===id);if(!editingQuestion)return;
+    const q=editingQuestion;document.getElementById("editorTitle").textContent="Edit question "+q.id;
+    document.getElementById("editStem").value=q.q;document.getElementById("editCategory").value=q.category;document.getElementById("editTopic").value=q.topic;
+    ["A","B","C","D"].forEach((letter,i)=>document.getElementById("edit"+letter).value=q.options[i]);
+    document.getElementById("editCorrect").value=q.ans;document.getElementById("editExplanation").value=q.explanation || "";document.getElementById("editEnabled").checked=q.important;
+    document.getElementById("editMessage").textContent="";document.getElementById("questionEditor").showModal();
+  }
+  async function saveQuestionEdit(event){
+    event.preventDefault();if(questionSaving || !editingQuestion)return;questionSaving=true;
+    document.getElementById("saveQuestionBtn").disabled=true;document.getElementById("cancelEditBtn").disabled=true;
+    document.getElementById("editMessage").textContent="Saving revision…";
+    const question={id:editingQuestion.id,q:document.getElementById("editStem").value,category:document.getElementById("editCategory").value,topic:document.getElementById("editTopic").value,
+      options:["A","B","C","D"].map(letter=>document.getElementById("edit"+letter).value),ans:Number(document.getElementById("editCorrect").value),explanation:document.getElementById("editExplanation").value,important:document.getElementById("editEnabled").checked};
+    try{const data=await facultyBankApi({action:"updateQuestion",question,revision:editingQuestion.revision});facultyQuestions=facultyQuestions.map(q=>q.id===data.question.id?data.question:q);document.getElementById("questionEditor").close();renderQuestionBank();document.getElementById("bankMessage").textContent=data.message;}
+    catch(err){document.getElementById("editMessage").textContent=err.message;}
+    finally{questionSaving=false;document.getElementById("saveQuestionBtn").disabled=false;document.getElementById("cancelEditBtn").disabled=false;}
   }
   let adminKey = "";
   let allResults = [];

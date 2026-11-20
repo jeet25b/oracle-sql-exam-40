@@ -29,7 +29,13 @@ function doPost(e) {
       verifyAdmin(data.key);
       return jsonResponse({status:"ok",window:getExamWindowStatus(),results:getAllResults()});
     }
+    if(data.action === "questionBank"){
+      verifyAdmin(data.key);
+      return jsonResponse({status:"ok",questions:getEditableQuestionBank()});
+    }
+    if(data.action === "updateQuestion")verifyAdmin(data.key);
     lock = LockService.getScriptLock(); lock.waitLock(30000);
+    if(data.action === "updateQuestion")return jsonResponse(updateQuestion(data));
     if (data.action === "updateWindow") {
       verifyAdmin(data.key);
       const open = new Date(data.openTime), close = new Date(data.closeTime);
@@ -150,7 +156,7 @@ function startAttempt(data, roll) {
   if(recordedResult(roll)) throw new Error("Only one attempt is allowed. This roll number has already submitted the exam.");
   const win=getExamWindowStatus();
   if(!win.isOpen) throw new Error(win.message || "The exam is not open.");
-  const pool=MASTER_QUESTION_BANK.filter(q=>q.important===true && ["DDL","DML","DQL"].includes(q.category)).slice();
+  const pool=getEditableQuestionBank().filter(q=>q.important===true && ["DDL","DML","DQL"].includes(q.category)).slice();
   if(pool.length<EXAM_SIZE) throw new Error("The deployed question bank has only "+pool.length+" eligible questions out of "+MASTER_QUESTION_BANK.length+". Update both Code.gs and QuestionBank.gs in this deployment, or use the combined Apps Script file.");
   for(let i=pool.length-1;i>0;i--){const j=Math.floor(Math.random()*(i+1));[pool[i],pool[j]]=[pool[j],pool[i]];}
   const now=Date.now();
@@ -376,11 +382,46 @@ function autoSubmitExpiredAttempts(){
 
 // Run in the Apps Script editor to verify the bank actually installed in this project.
 function checkQuestionBank(){
-  const pool=MASTER_QUESTION_BANK.filter(q=>q.important===true && ["DDL","DML","DQL"].includes(q.category));
+  const pool=getEditableQuestionBank().filter(q=>q.important===true && ["DDL","DML","DQL"].includes(q.category));
   const selected=balanceAnswerPositions(selectExamQuestions(pool));
   const report={bankVersion:"20261120-slides-72",total:MASTER_QUESTION_BANK.length,eligible:pool.length,
     selected:selected.length,unique:new Set(selected.map(q=>q.id)).size,
     dataTypes:selected.filter(q=>q.topic==="Data Types").length,constraints:selected.filter(q=>q.topic==="Constraints").length,
     answerPositions:[0,1,2,3].map(i=>selected.filter(q=>q.ans===i).length)};
   console.log(JSON.stringify(report));return report;
+}
+
+// Private persistent overrides survive future Apps Script redeployments.
+function getEditableQuestionBank(){
+  const sheet=SpreadsheetApp.getActiveSpreadsheet().getSheetByName("QuestionEdits");
+  const overrides=new Map();
+  if(sheet && sheet.getLastRow()>1)sheet.getRange(2,1,sheet.getLastRow()-1,3).getValues().forEach(row=>{
+    if(row[1])overrides.set(Number(row[0]),{...JSON.parse(row[1]),revision:Number(row[2])});
+  });
+  return MASTER_QUESTION_BANK.map(q=>({...q,...(overrides.get(q.id)||{}),id:q.id,revision:overrides.has(q.id)?overrides.get(q.id).revision:0}));
+}
+function updateQuestion(data){
+  if(!data.question || typeof data.question!=="object")throw new Error("Invalid question data.");
+  const bank=getEditableQuestionBank(),index=bank.findIndex(q=>q.id===data.question.id);
+  if(index<0)throw new Error("Question not found.");
+  const original=bank[index],input=data.question;
+  if(data.revision!==original.revision)throw new Error("This question was changed by another editor. Reload the bank before editing again.");
+  const text=(value,max)=>typeof value==="string" && value.trim().length>0 && value.trim().length<=max;
+  if(!text(input.q,4000) || !Array.isArray(input.options) || input.options.length!==4 || !input.options.every(o=>text(o,1500)))throw new Error("Enter a question and exactly four non-empty options within the length limits.");
+  if(new Set(input.options.map(o=>o.trim().toLowerCase())).size!==4)throw new Error("Answer options must be distinct.");
+  if(!Number.isInteger(input.ans) || input.ans<0 || input.ans>3)throw new Error("Select exactly one correct option.");
+  if(!["DDL","DML","DQL"].includes(input.category) || !text(input.topic,80) || typeof input.important!=="boolean")throw new Error("Invalid category, topic or enabled status.");
+  if(typeof input.explanation!=="string" || input.explanation.length>4000)throw new Error("Explanation must be at most 4000 characters.");
+  const updated={...original,q:input.q.trim(),options:input.options.map(o=>o.trim()),ans:input.ans,
+    category:input.category,topic:input.topic.trim(),important:input.important,explanation:input.explanation.trim(),revision:original.revision+1};
+  bank[index]=updated;
+  // Do not allow edits to make the required 40-question blueprint impossible.
+  selectExamQuestions(bank.filter(q=>q.important===true && ["DDL","DML","DQL"].includes(q.category)));
+  const ss=SpreadsheetApp.getActiveSpreadsheet();let sheet=ss.getSheetByName("QuestionEdits");
+  if(!sheet){sheet=ss.insertSheet("QuestionEdits");sheet.appendRow(["Question ID","Question JSON","Revision","Updated (UTC)"]);}
+  const rows=sheet.getLastRow()>1?sheet.getRange(2,1,sheet.getLastRow()-1,1).getValues():[];
+  const at=rows.findIndex(r=>Number(r[0])===updated.id);
+  const values=[updated.id,JSON.stringify(updated),updated.revision,new Date().toISOString()];
+  if(at>=0)sheet.getRange(at+2,1,1,4).setValues([values]);else sheet.appendRow(values);
+  return {status:"ok",question:updated,message:"Question updated. Only new attempts use this revision."};
 }
