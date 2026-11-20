@@ -11,9 +11,16 @@ let needsSessionVerification = false;
 let result = null, submitPending = false, lastSync = 0, warningLevel = 0, recovery = null;
 function setVisible(id, visible) { $(id).classList.toggle("hidden", !visible); }
 function message(text, type = "") { $("accessBanner").textContent = text; $("accessBanner").className = "notice " + type; }
-async function api(payload) {
+let requestQueue = Promise.resolve();
+function api(payload) {
+  // Preserve write order so an older autosave cannot overwrite a submitted answer.
+  const request = requestQueue.then(() => requestApi(payload));
+  requestQueue = request.catch(() => {});
+  return request;
+}
+async function requestApi(payload) {
   const controller = new AbortController();
-  const timeout = setTimeout(() => controller.abort(), 20000);
+  const timeout = setTimeout(() => controller.abort(), 45000);
   try {
     const response = await fetch(SCRIPT_URL, {method: "POST", body: JSON.stringify(payload), signal: controller.signal});
     if (!response.ok) throw new Error("The server is unavailable. Please try again.");
@@ -43,7 +50,7 @@ function changed() {
   saveTimer = setTimeout(syncProgress, 650);
 }
 async function syncProgress() {
-  if (!attempt || finalized || submitPending) return;
+  if (!attempt || finalized || submitPending || questionFeedbackBusy) return;
   if (syncing) { resave = true; return; }
   syncing = true;
   const sentRevision = revision;
@@ -68,7 +75,7 @@ async function syncProgress() {
     $("saveStatus").textContent = "Not synced · your device copy is retained. Reconnecting…";
   } finally {
     syncing = false;
-    if (resave && !finalized && !submitPending) { resave = false; syncProgress(); }
+    if (resave && !finalized && !submitPending && !questionFeedbackBusy) { resave = false; syncProgress(); }
   }
 }
 function applyTheme(theme) {
@@ -214,7 +221,6 @@ async function startExam(e) {
     attempt.seenQuestions = [...new Set([...(attempt.seenQuestions || []), ...(previous && previous.attempt.token === attempt.token ? previous.attempt.seenQuestions || [] : [])])];
     attempt.lockedQuestions = attempt.lockedQuestions || [];
     finalized = false;
-    if (previous && previous.attempt.token === attempt.token) attempt.feedback = {...(previous.attempt.feedback || {}), ...(attempt.feedback || {})};
     if (data.result) { acceptResult(data.result); return; }
     // Merge the newest unsynced device changes only for the identical server attempt.
     if (previous && previous.attempt.token === attempt.token && !previous.finalized && previous.savedAt > (attempt.updatedAt || 0)) {
@@ -251,19 +257,32 @@ async function submitCurrentQuestion() {
   questionFeedbackBusy=true;
   $("submitQuestionBtn").disabled=true;
   $("submitQuestionBtn").textContent="Saving…";
-  changed();
+  revision++;
+  localSave();
+  clearTimeout(saveTimer);
+  $("saveStatus").textContent="Saving this answer online… Please wait; one click is enough.";
   try {
-    const response=await api({action:"submitQuestion",rollNo:attempt.roll,token:attempt.token,questionId:q.id,...snapshot()});
+    const payload={action:"submitQuestion",rollNo:attempt.roll,token:attempt.token,questionId:q.id,...snapshot()};
+    let response;
+    try { response=await api(payload); }
+    catch(err) {
+      if(!(err.name==="AbortError" || err.name==="TypeError" || /server is unavailable/i.test(err.message)))throw err;
+      $("saveStatus").textContent="Connection interrupted. Retrying your saved answer automatically…";
+      response=await api(payload);
+    }
+    lastSync=Date.now();
+    $("saveStatus").textContent="Answer saved online";
     if(response.result){acceptResult(response.result);return;}
     attempt.feedback=attempt.feedback || {};
     attempt.feedback[q.id]={correct:response.correctOption,selected:response.selectedOption};
     localSave();renderQuestion();
     $("submitQuestionBtn").textContent=response.selectedOption===response.correctOption?"Correct ✓":"Incorrect";
+    await new Promise(resolve=>setTimeout(resolve,1000));
     questionFeedbackBusy=false;
     if(!blocked() && attempt.questions[attempt.currentIdx].id===q.id){
       if(attempt.currentIdx<attempt.questions.length-1)navigate(1);else renderQuestion();
     }
-  } catch(err){$("saveStatus").textContent=err.message;}
+  } catch(err){$("saveStatus").textContent=err.message+" Your answer is retained on this device. Select Submit Question to retry.";}
   finally{questionFeedbackBusy=false;if(attempt && !finalized && !submitPending)renderQuestion();}
 }
 function blocked() { return !attempt || finalized || submitPending || Date.now() + clockOffset >= deadline; }
@@ -313,7 +332,7 @@ function renderQuestion(focus = false) {
     const letter = document.createElement("span"); letter.className = "option-letter"; letter.textContent = String.fromCharCode(65 + index) + "."; letter.setAttribute("aria-hidden", "true");
     const text = document.createElement("span"); text.textContent = option;
     const feedback=attempt.feedback && attempt.feedback[q.id];
-    if(feedback && feedback.selected===attempt.answers[q.id]){
+    if(questionFeedbackBusy && feedback && feedback.selected===attempt.answers[q.id]){
       if(index===feedback.correct)label.classList.add("feedback-correct");
       else if(index===feedback.selected)label.classList.add("feedback-wrong");
     }

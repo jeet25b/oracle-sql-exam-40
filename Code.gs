@@ -62,7 +62,7 @@ function doPost(e) {
     if (!stored || !data.token || stored.value.token !== data.token) throw new Error("Your session could not be verified. Sign in again with your access code.");
     const attempt = stored.value;
     // A response can be lost after a successful spreadsheet write. Retries return the same result.
-    if (!attempt.result) attempt.result = recordedResult(roll);
+    if (!attempt.result && data.action === "submit") attempt.result = recordedResult(roll);
     if (attempt.result) {
       ensureResultSaved(attempt);
       writeAttempt(stored.row,attempt);
@@ -77,8 +77,6 @@ function doPost(e) {
       if((attempt.lockedQuestions || []).includes(question.id))throw new Error("This question is locked.");
       updateAnswers(attempt,data);
       if(!Number.isInteger(attempt.answers[question.id]))throw new Error("Select an answer first.");
-      attempt.feedback=attempt.feedback || {};
-      attempt.feedback[question.id]={correct:question.ans,selected:attempt.answers[question.id]};
       writeAttempt(stored.row,attempt);
       return jsonResponse({status:"ok",questionId:question.id,correctOption:question.ans,selectedOption:attempt.answers[question.id]});
     }
@@ -134,7 +132,7 @@ function startAttempt(data, roll) {
   if(!name || name.length>120 || !batch || batch.length>180) throw new Error("Complete your name and academic details.");
   const attempt={roll:roll,name:name,batch:batch,token:Utilities.getUuid(),startedAt:now,
     deadline:Math.min(now+win.durationMinutes*60000,new Date(win.closeISO).getTime()),
-    updatedAt:now,questions:balanceAnswerPositions(pool.slice(0,EXAM_SIZE)),answers:{},flags:[],lockedQuestions:[],seenQuestions:[],feedback:{},currentIdx:0,tabSwitches:0,focusLosses:0,result:null};
+    updatedAt:now,questions:balanceAnswerPositions(pool.slice(0,EXAM_SIZE)),answers:{},flags:[],lockedQuestions:[],seenQuestions:[],currentIdx:0,tabSwitches:0,focusLosses:0,result:null};
   const sheet=attemptSheet();sheet.appendRow([roll,attempt.token,JSON.stringify(attempt)]);SpreadsheetApp.flush();
   return {status:"ok",attempt:publicAttempt(attempt),serverNow:now};
 }
@@ -154,7 +152,7 @@ function balanceAnswerPositions(questions){
 function publicAttempt(attempt){
   return {roll:attempt.roll,name:attempt.name,batch:attempt.batch,token:attempt.token,startedAt:attempt.startedAt,deadline:attempt.deadline,updatedAt:attempt.updatedAt || attempt.startedAt,
     questions:attempt.questions.map(q=>({id:q.id,topic:q.topic,q:q.q,options:q.options})),
-    answers:attempt.answers,flags:attempt.flags,seenQuestions:attempt.seenQuestions || [],feedback:attempt.feedback || {},lockedQuestions:attempt.lockedQuestions || [],currentIdx:attempt.currentIdx,tabSwitches:attempt.tabSwitches,focusLosses:attempt.focusLosses || 0};
+    answers:attempt.answers,flags:attempt.flags,seenQuestions:attempt.seenQuestions || [],lockedQuestions:attempt.lockedQuestions || [],currentIdx:attempt.currentIdx,tabSwitches:attempt.tabSwitches,focusLosses:attempt.focusLosses || 0};
 }
 function attemptSheet(){
   const ss=SpreadsheetApp.getActiveSpreadsheet();let sheet=ss.getSheetByName(ATTEMPTS_SHEET);

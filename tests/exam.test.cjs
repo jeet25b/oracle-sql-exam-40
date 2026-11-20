@@ -99,32 +99,36 @@ test('final submission check includes locked questions',()=>{
  const {ctx,elements}=ui();vm.runInContext('deadline=Date.now()+600000;attempt.lockedQuestions=[1,3];confirmSubmit()',ctx);
  assert(elements.confirmCounts.textContent.includes('Locked questions: 2'));assert.equal(elements.submitDialog.open,true);
 });
-test('Submit Question advances without delay and submitted feedback remains on Previous, Next and number navigation',async()=>{
+test('Submit Question shows one-second feedback but revisiting does not show option highlights',async()=>{
  const {ctx,elements}=ui();await vm.runInContext('initialize()',ctx);
  vm.runInContext('deadline=Date.now()+600000;syncProgress=async()=>{};',ctx);
- ctx.setTimeout=(callback,ms)=>{assert.notEqual(ms,1000,'must not pause for feedback');return 1};
+ let release;ctx.setTimeout=(callback,ms)=>{if(ms===1000)release=callback;return 1};
  ctx.api=async()=>({status:'ok',correctOption:1,selectedOption:0});
- await vm.runInContext('submitCurrentQuestion()',ctx);
- assert.equal(vm.runInContext('attempt.currentIdx',ctx),1);
- assert(elements.questionPalette.children[0].className.includes('incorrect'));
- // Track actual feedback classes applied during rendering.
  const original=ctx.document.createElement;
  ctx.document.createElement=()=>{const e=original();e.applied=[];e.classList.add=name=>e.applied.push(name);return e;};
- elements.prevBtn.onclick();
+ const pending=vm.runInContext('submitCurrentQuestion()',ctx);await new Promise(r=>setImmediate(r));
+ assert.equal(vm.runInContext('attempt.currentIdx',ctx),0);
  assert(elements.optionsContainer.children[0].applied.includes('feedback-wrong'));
  assert(elements.optionsContainer.children[1].applied.includes('feedback-correct'));
- elements.nextBtn.onclick();elements.questionPalette.children[0].onclick();
- assert(elements.optionsContainer.children[0].applied.includes('feedback-wrong'));
- assert(elements.optionsContainer.children[1].applied.includes('feedback-correct'));
- // A changed answer clears old feedback until submitted again.
- elements.optionsContainer.children[1].children[0].onchange();
- assert(elements.optionsContainer.children.every(label=>label.applied.length===0));
+ assert.equal(typeof release,'function');release();await pending;
+ assert.equal(vm.runInContext('attempt.currentIdx',ctx),1);
+ elements.prevBtn.onclick();assert(elements.optionsContainer.children.every(label=>label.applied.length===0));
+ elements.nextBtn.onclick();elements.questionPalette.children[0].onclick();assert(elements.optionsContainer.children.every(label=>label.applied.length===0));
+ assert(elements.questionPalette.children[0].className.includes('incorrect'));
 });
 test('focus loss after revisiting locks every seen question, leaving unseen questions editable',()=>{
  const {ctx}=ui();vm.runInContext('deadline=Date.now()+600000;syncProgress=async()=>{};renderQuestion();navigate(1);navigate(-1);recordFocusEvent("focus");',ctx);
  assert.deepEqual(JSON.parse(vm.runInContext('JSON.stringify(attempt.lockedQuestions)',ctx)),[1,2]);
  vm.runInContext('navigate(1)',ctx);assert.equal(vm.runInContext('questionBlocked()',ctx),true);
  vm.runInContext('navigate(1)',ctx);assert.equal(vm.runInContext('questionBlocked()',ctx),false);
+});
+test('single submit click retries a transient failure and avoids competing autosaves',async()=>{
+ const {ctx,elements}=ui();await vm.runInContext('initialize()',ctx);
+ vm.runInContext('deadline=Date.now()+600000;',ctx);ctx.setTimeout=(callback,ms)=>{if(ms===1000)callback();return 1};let calls=0;
+ ctx.api=async payload=>{assert.equal(payload.action,'submitQuestion');calls++;if(calls===1)throw new TypeError('Network interrupted');return {correctOption:1,selectedOption:0}};
+ await vm.runInContext('submitCurrentQuestion()',ctx);
+ assert.equal(calls,2);assert.equal(vm.runInContext('attempt.currentIdx',ctx),1);
+ assert.equal(vm.runInContext('questionFeedbackBusy',ctx),false);
 });
 test('blank question remains blank when locked and submitted exams do not acquire new locks',()=>{
  const {ctx}=ui();vm.runInContext('deadline=Date.now()+600000;currentIdx=0;attempt.currentIdx=2;syncProgress=async()=>{};lockCurrentQuestion();',ctx);
@@ -266,12 +270,12 @@ if(!process.argv.includes('--frontend-only')){
   assert.equal(JSON.parse(b.sheets.get('Attempts').rows[1][2]).answers[q.id],0);
  });
 
- test('server persists submitted feedback and locks all previously viewed questions on focus loss',()=>{
+ test('server locks all previously viewed questions without exposing persistent answer feedback',()=>{
   const b=createBackend(),a=start(b).attempt,one=a.questions[0].id,two=a.questions[1].id,unseen=a.questions[2].id;
   b.post({action:'submitQuestion',rollNo:a.roll,token:a.token,questionId:one,answers:{[one]:0},seenQuestions:[one]});
   const res=b.post({action:'saveAttempt',rollNo:a.roll,token:a.token,answers:{[one]:0},seenQuestions:[two],focusLosses:1});assert.equal(res.status,'ok');
   const recovered=start(b).attempt;assert(recovered.lockedQuestions.includes(one));assert(recovered.lockedQuestions.includes(two));assert(!recovered.lockedQuestions.includes(unseen));
-  assert.equal(recovered.feedback[one].selected,0);assert(Number.isInteger(recovered.feedback[one].correct));
+  assert.equal(recovered.feedback,undefined);
  });
 
  test('deadline is earlier of duration and closing time and server finalizes absent students once',()=>{
