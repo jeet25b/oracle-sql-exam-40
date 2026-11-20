@@ -167,8 +167,48 @@ async function initialize() {
       attempt = recovery.attempt; result = recovery.result; finalized = true; showResults();
       return;
     }
+    if (await restoreSavedAttempt()) return;
   }
   await checkExamWindow();
+}
+async function restoreSavedAttempt(){
+  const saved=recovery;
+  try{
+    message("Restoring your saved assessment…");
+    const data=await api({action:"resumeAttempt",rollNo:saved.attempt.roll,token:saved.attempt.token});
+    const server=data.attempt;
+    if(!server || server.token!==saved.attempt.token || JSON.stringify(server.questions.map(q=>q.id))!==JSON.stringify(saved.attempt.questions.map(q=>q.id)))throw new Error("Saved attempt does not match the server. Please sign in again.");
+    const serverAnswers={...server.answers};
+    attempt=server;
+    if(saved.savedAt>(server.updatedAt || 0)){
+      attempt.answers={...saved.attempt.answers};
+      attempt.flags=saved.attempt.flags || [];
+      attempt.currentIdx=Math.min(saved.attempt.currentIdx || 0,server.questions.length-1);
+      for(const id of server.lockedQuestions || []){
+        if(serverAnswers[id]===undefined)delete attempt.answers[id];else attempt.answers[id]=serverAnswers[id];
+      }
+    }
+    attempt.lockedQuestions=[...new Set([...(server.lockedQuestions || []),...(saved.attempt.lockedQuestions || [])])];
+    attempt.seenQuestions=[...new Set([...(server.seenQuestions || []),...(saved.attempt.seenQuestions || [])])];
+    attempt.tabSwitches=Math.max(server.tabSwitches || 0,saved.attempt.tabSwitches || 0);
+    attempt.focusLosses=Math.max(server.focusLosses || 0,saved.attempt.focusLosses || 0);
+    deadline=server.deadline;clockOffset=data.serverNow-Date.now();
+    finalized=false;submitPending=!!saved.submitPending;
+    focusMonitoringArmed=false;tabAway=false;focusAway=false;
+    if(data.result){acceptResult(data.result);return true;}
+    setVisible("gateView",false);setVisible("examView",true);setVisible("timerDisplay",true);
+    $("sessionBadge").textContent="Assessment in progress";
+    $("studentLine").textContent=`${attempt.name} · ${attempt.roll} · ${attempt.batch}`;
+    buildPalette();renderQuestion();localSave();
+    $("saveStatus").textContent="Assessment restored. Select Full screen to continue in full screen.";
+    timer=setInterval(tick,1000);tick();
+    if(submitPending)submitExam();else syncProgress();
+    return true;
+  }catch(err){
+    attempt=null;
+    message("Unable to restore automatically. Your saved answers are retained. Sign in with your access code to resume.","closed");
+    return false;
+  }
 }
 async function checkExamWindow() {
   try {

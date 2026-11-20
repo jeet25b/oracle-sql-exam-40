@@ -292,4 +292,11 @@ if(!process.argv.includes('--frontend-only')){
   b.advance(46000);const res=b.post({action:'saveAttempt',rollNo:a.roll,token:a.token,answers:{}});assert.equal(res.result.unattemptedCount,40);assert.equal(b.sheets.get('Results').rows.length,2);
  });
 
+ test('token-based refresh resumes same attempt without access code or a new timer',()=>{
+  const b=createBackend(),a=start(b).attempt;
+  assert.equal(b.post({action:'resumeAttempt',rollNo:a.roll,token:'wrong'}).status,'error');
+  b.advance(30000);const data=b.post({action:'resumeAttempt',rollNo:a.roll,token:a.token});
+  assert.equal(data.status,'ok');assert.equal(data.attempt.deadline,a.deadline);assert.equal(data.attempt.token,a.token);assert.equal(b.sheets.get('Attempts').rows.length,2);
+ });
+
 }

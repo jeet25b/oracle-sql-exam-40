@@ -45,6 +45,17 @@ function doPost(e) {
     const roll = normalizeRoll(data.rollNo);
     if (!/^[A-Z0-9][A-Z0-9._\/-]{2,59}$/.test(roll)) throw new Error("Enter a valid university roll number (3–60 characters).");
     if (data.action === "startAttempt") return jsonResponse(startAttempt(data, roll));
+    if(data.action === "resumeAttempt"){
+      const saved=findAttempt(roll);
+      if(!saved || !data.token || saved.value.token!==data.token)throw new Error("Your session could not be verified. Sign in again with your access code.");
+      const value=saved.value;
+      applyClosingDeadline(value);
+      value.result=value.result || recordedResult(roll);
+      if(!value.result && Date.now()>value.deadline+15000)value.result=gradeAttempt(value);
+      if(value.result)ensureResultSaved(value);
+      writeAttempt(saved.row,value);
+      return jsonResponse({status:"ok",attempt:publicAttempt(value),result:value.result || null,serverNow:Date.now()});
+    }
     if (data.action === "recoverAttempt") {
       verifyStudent(roll, data.accessCode);
       const saved = findAttempt(roll);
