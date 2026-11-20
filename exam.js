@@ -313,11 +313,8 @@ async function submitCurrentQuestion() {
     lastSync=Date.now();
     $("saveStatus").textContent="Answer saved online";
     if(response.result){acceptResult(response.result);return;}
-    attempt.feedback=attempt.feedback || {};
-    attempt.feedback[q.id]={correct:response.correctOption,selected:response.selectedOption};
-    localSave();renderQuestion();
-    $("submitQuestionBtn").textContent=response.selectedOption===response.correctOption?"Correct ✓":"Incorrect";
-    await new Promise(resolve=>setTimeout(resolve,1000));
+    delete attempt.feedback;
+    localSave();
     questionFeedbackBusy=false;
     if(!blocked() && attempt.questions[attempt.currentIdx].id===q.id){
       if(attempt.currentIdx<attempt.questions.length-1)navigate(1);else renderQuestion();
@@ -371,11 +368,6 @@ function renderQuestion(focus = false) {
     const radio = document.createElement("input"); radio.type = "radio"; radio.name = "answer"; radio.value = String(index); radio.checked = attempt.answers[q.id] === index; radio.disabled = questionBlocked();
     const letter = document.createElement("span"); letter.className = "option-letter"; letter.textContent = String.fromCharCode(65 + index) + "."; letter.setAttribute("aria-hidden", "true");
     const text = document.createElement("span"); text.textContent = option;
-    const feedback=attempt.feedback && attempt.feedback[q.id];
-    if(questionFeedbackBusy && feedback && feedback.selected===attempt.answers[q.id]){
-      if(index===feedback.correct)label.classList.add("feedback-correct");
-      else if(index===feedback.selected)label.classList.add("feedback-wrong");
-    }
     radio.onchange = () => { if (questionBlocked()) return; if(attempt.feedback)delete attempt.feedback[q.id]; attempt.answers[q.id] = index; $("submitQuestionBtn").textContent = "Submit Question"; changed(); renderQuestion(); };
     label.append(radio, letter, text); options.appendChild(label);
   });
@@ -422,8 +414,7 @@ function updatePalette() {
     const btn = $("questionPalette").children[idx];
     const detail = result && result.details ? result.details[idx] : null;
     const answered = attempt.answers[q.id] !== undefined;
-    const feedback=attempt.feedback && attempt.feedback[q.id];
-    let state = detail ? detail.status : feedback && feedback.selected===attempt.answers[q.id] ? (feedback.correct===feedback.selected?"correct":"wrong") : answered ? "answered" : "unanswered";
+    let state = finalized && detail ? detail.status : answered ? "answered" : "unanswered";
     const flagged = !finalized && attempt.flags.includes(q.id);
     const locked = !finalized && (attempt.lockedQuestions || []).includes(q.id);
     btn.className = "pal-btn" + (state === "correct" ? " answered" : state === "answered" ? " selected-answer" : state === "wrong" ? " incorrect" : "") + (locked ? " locked" : "") + (flagged ? " flagged" : "") + (!finalized && !submitPending && attempt.currentIdx === idx ? " current" : "");

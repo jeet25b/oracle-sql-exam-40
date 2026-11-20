@@ -89,7 +89,7 @@ function doPost(e) {
       updateAnswers(attempt,data);
       if(!Number.isInteger(attempt.answers[question.id]))throw new Error("Select an answer first.");
       writeAttempt(stored.row,attempt);
-      return jsonResponse({status:"ok",questionId:question.id,correctOption:question.ans,selectedOption:attempt.answers[question.id]});
+      return jsonResponse({status:"ok",questionId:question.id,message:"Answer saved successfully."});
     }
     if (data.action === "saveAttempt") {
       if(now>attempt.deadline+15000){

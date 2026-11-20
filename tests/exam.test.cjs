@@ -99,22 +99,13 @@ test('final submission check includes locked questions',()=>{
  const {ctx,elements}=ui();vm.runInContext('deadline=Date.now()+600000;attempt.lockedQuestions=[1,3];confirmSubmit()',ctx);
  assert(elements.confirmCounts.textContent.includes('Locked questions: 2'));assert.equal(elements.submitDialog.open,true);
 });
-test('Submit Question shows one-second feedback but revisiting does not show option highlights',async()=>{
+test('Submit Question advances without revealing correctness and ignores old feedback',async()=>{
  const {ctx,elements}=ui();await vm.runInContext('initialize()',ctx);
- vm.runInContext('deadline=Date.now()+600000;syncProgress=async()=>{};',ctx);
- let release;ctx.setTimeout=(callback,ms)=>{if(ms===1000)release=callback;return 1};
- ctx.api=async()=>({status:'ok',correctOption:1,selectedOption:0});
- const original=ctx.document.createElement;
- ctx.document.createElement=()=>{const e=original();e.applied=[];e.classList.add=name=>e.applied.push(name);return e;};
- const pending=vm.runInContext('submitCurrentQuestion()',ctx);await new Promise(r=>setImmediate(r));
- assert.equal(vm.runInContext('attempt.currentIdx',ctx),0);
- assert(elements.optionsContainer.children[0].applied.includes('feedback-wrong'));
- assert(elements.optionsContainer.children[1].applied.includes('feedback-correct'));
- assert.equal(typeof release,'function');release();await pending;
- assert.equal(vm.runInContext('attempt.currentIdx',ctx),1);
- elements.prevBtn.onclick();assert(elements.optionsContainer.children.every(label=>label.applied.length===0));
- elements.nextBtn.onclick();elements.questionPalette.children[0].onclick();assert(elements.optionsContainer.children.every(label=>label.applied.length===0));
- assert(elements.questionPalette.children[0].className.includes('incorrect'));
+ vm.runInContext('deadline=Date.now()+600000;syncProgress=async()=>{};attempt.feedback={1:{correct:1,selected:0}};',ctx);
+ ctx.setTimeout=(callback,ms)=>{assert.notEqual(ms,1000);return 1};ctx.api=async()=>({status:'ok',message:'Answer saved successfully.'});
+ await vm.runInContext('submitCurrentQuestion()',ctx);assert.equal(vm.runInContext('attempt.currentIdx',ctx),1);
+ assert(elements.questionPalette.children[0].className.includes('selected-answer'));assert(!elements.questionPalette.children[0].className.includes('incorrect'));
+ assert.equal(vm.runInContext('attempt.feedback',ctx),undefined);
 });
 test('focus loss after revisiting locks every seen question, leaving unseen questions editable',()=>{
  const {ctx}=ui();vm.runInContext('deadline=Date.now()+600000;syncProgress=async()=>{};renderQuestion();navigate(1);navigate(-1);recordFocusEvent("focus");',ctx);
@@ -263,10 +254,10 @@ if(!process.argv.includes('--frontend-only')){
   }
  });
 
- test('question feedback saves answer and returns canonical remapped correct option',()=>{
+ test('question submission saves answer without returning its correct option',()=>{
   const b=createBackend(),a=start(b).attempt,q=a.questions[0];const stored=JSON.parse(b.sheets.get('Attempts').rows[1][2]);
   const response=b.post({action:'submitQuestion',rollNo:a.roll,token:a.token,questionId:q.id,answers:{[q.id]:0}});
-  assert.equal(response.status,'ok');assert.equal(response.correctOption,stored.questions[0].ans);assert.equal(response.selectedOption,0);
+  assert.equal(response.status,'ok');assert.equal(response.correctOption,undefined);assert.equal(response.selectedOption,undefined);
   assert.equal(JSON.parse(b.sheets.get('Attempts').rows[1][2]).answers[q.id],0);
  });
 
