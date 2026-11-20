@@ -151,7 +151,7 @@ function startAttempt(data, roll) {
   const win=getExamWindowStatus();
   if(!win.isOpen) throw new Error(win.message || "The exam is not open.");
   const pool=MASTER_QUESTION_BANK.filter(q=>q.important===true && ["DDL","DML","DQL"].includes(q.category)).slice();
-  if(pool.length<EXAM_SIZE) throw new Error("The question bank must contain at least 40 eligible questions.");
+  if(pool.length<EXAM_SIZE) throw new Error("The deployed question bank has only "+pool.length+" eligible questions out of "+MASTER_QUESTION_BANK.length+". Update both Code.gs and QuestionBank.gs in this deployment, or use the combined Apps Script file.");
   for(let i=pool.length-1;i>0;i--){const j=Math.floor(Math.random()*(i+1));[pool[i],pool[j]]=[pool[j],pool[i]];}
   const now=Date.now();
   const name=student.name || String(data.name || "").trim();
@@ -370,4 +370,15 @@ function autoSubmitExpiredAttempts(){
     });
     return count;
   }finally{if(lock.hasLock()){try{SpreadsheetApp.flush();}finally{lock.releaseLock();}}}
+}
+
+// Run in the Apps Script editor to verify the bank actually installed in this project.
+function checkQuestionBank(){
+  const pool=MASTER_QUESTION_BANK.filter(q=>q.important===true && ["DDL","DML","DQL"].includes(q.category));
+  const selected=balanceAnswerPositions(selectExamQuestions(pool));
+  const report={bankVersion:"20261120-detailed-74",total:MASTER_QUESTION_BANK.length,eligible:pool.length,
+    selected:selected.length,unique:new Set(selected.map(q=>q.id)).size,
+    dataTypes:selected.filter(q=>q.topic==="Data Types").length,constraints:selected.filter(q=>q.topic==="Constraints").length,
+    answerPositions:[0,1,2,3].map(i=>selected.filter(q=>q.ans===i).length)};
+  console.log(JSON.stringify(report));return report;
 }

@@ -1,0 +1,1700 @@
+// PRIVATE: paste this entire file into Code.gs in Apps Script.
+// Remove the separate QuestionBank.gs file from that Apps Script project FIRST,
+// to avoid declaring MASTER_QUESTION_BANK twice. Do not publish this file on GitHub Pages.
+
+// Private Oracle 19c assessment bank. DDL, DML and DQL only.
+// Plausible distractors; one best answer. Explanations stay on the server.
+const MASTER_QUESTION_BANK = [
+  {
+    "id": 1,
+    "topic": "DBMS & Keys",
+    "category": "EXCLUDED",
+    "important": false,
+    "q": "Which key uniquely identifies each tuple in a relation and cannot contain NULL values?",
+    "options": [
+      "Foreign Key",
+      "Primary Key",
+      "Alternate Key",
+      "Partial Key"
+    ],
+    "ans": 1
+  },
+  {
+    "id": 2,
+    "topic": "DBMS & Keys",
+    "category": "EXCLUDED",
+    "important": false,
+    "q": "Which integrity constraint ensures that a foreign key value in a child table must either match a primary key value in the parent table or be NULL?",
+    "options": [
+      "Entity Integrity",
+      "Domain Integrity",
+      "Referential Integrity",
+      "User-Defined Integrity"
+    ],
+    "ans": 2
+  },
+  {
+    "id": 3,
+    "topic": "Normalization",
+    "category": "EXCLUDED",
+    "important": false,
+    "q": "A relation is in First Normal Form (1NF) if every attribute contains only what type of values?",
+    "options": [
+      "Composite values",
+      "Atomic (indivisible) values",
+      "Multi-valued attributes",
+      "Derived values"
+    ],
+    "ans": 1
+  },
+  {
+    "id": 4,
+    "topic": "Normalization",
+    "category": "EXCLUDED",
+    "important": false,
+    "q": "Which normal form eliminates partial functional dependencies on a composite primary key?",
+    "options": [
+      "1NF",
+      "2NF",
+      "3NF",
+      "BCNF"
+    ],
+    "ans": 1
+  },
+  {
+    "id": 5,
+    "topic": "Data Types",
+    "category": "DDL",
+    "important": true,
+    "q": "A column must retain trailing blanks as meaningful variable-length character data rather than pad every shorter value. Which declaration is most suitable?",
+    "options": [
+      "CHAR(20 CHAR)",
+      "VARCHAR2(20 CHAR)",
+      "NUMBER(20)",
+      "DATE"
+    ],
+    "ans": 1,
+    "explanation": "VARCHAR2 stores variable-length character data without fixed-width padding.",
+    "difficulty": "application"
+  },
+  {
+    "id": 6,
+    "topic": "DDL",
+    "category": "DDL",
+    "important": true,
+    "q": "A staging table must retain its column definitions but discard all rows. Which operation directly meets this requirement without a row filter?",
+    "options": [
+      "DROP TABLE staging",
+      "TRUNCATE TABLE staging",
+      "DELETE FROM staging WHERE 1 = 0",
+      "ALTER TABLE staging DROP COLUMN id"
+    ],
+    "ans": 1,
+    "explanation": "TRUNCATE removes rows while retaining the table definition; DROP removes the object.",
+    "difficulty": "application"
+  },
+  {
+    "id": 7,
+    "topic": "DDL",
+    "category": "DDL",
+    "important": true,
+    "q": "Which command removes both the data and the table structure permanently from the database?",
+    "options": [
+      "DELETE TABLE emp;",
+      "TRUNCATE TABLE emp;",
+      "DROP TABLE emp;",
+      "CLEAR TABLE emp;"
+    ],
+    "ans": 2,
+    "difficulty": "intermediate"
+  },
+  {
+    "id": 8,
+    "topic": "DDL",
+    "category": "DDL",
+    "important": true,
+    "q": "Which statement adds a new column EMAIL of type VARCHAR2(100) to the EMPLOYEE table in Oracle?",
+    "options": [
+      "ALTER TABLE employee ADD COLUMN email VARCHAR2(100);",
+      "ALTER TABLE employee ADD (email VARCHAR2(100));",
+      "MODIFY TABLE employee ADD email VARCHAR2(100);",
+      "UPDATE TABLE employee ADD email VARCHAR2(100);"
+    ],
+    "ans": 1,
+    "difficulty": "intermediate"
+  },
+  {
+    "id": 9,
+    "topic": "DDL",
+    "category": "DDL",
+    "important": true,
+    "q": "Which Oracle SQL command renames an existing column OLD_COL to NEW_COL in the EMPLOYEE table?",
+    "options": [
+      "ALTER TABLE employee RENAME COLUMN old_col TO new_col;",
+      "ALTER TABLE employee CHANGE old_col new_col;",
+      "RENAME COLUMN employee.old_col TO new_col;",
+      "MODIFY employee RENAME old_col TO new_col;"
+    ],
+    "ans": 0,
+    "difficulty": "intermediate"
+  },
+  {
+    "id": 10,
+    "topic": "DDL",
+    "category": "DDL",
+    "important": true,
+    "q": "Which command changes the name of an existing table EMP to EMPLOYEE in Oracle?",
+    "options": [
+      "ALTER TABLE emp NAME TO employee;",
+      "RENAME emp TO employee;",
+      "CHANGE TABLE emp TO employee;",
+      "MODIFY TABLE emp RENAME employee;"
+    ],
+    "ans": 1,
+    "difficulty": "intermediate"
+  },
+  {
+    "id": 11,
+    "topic": "Constraints",
+    "category": "DDL",
+    "important": false,
+    "q": "Which constraint in Oracle allows multiple NULL values in a column while enforcing uniqueness for all non-NULL values?",
+    "options": [
+      "PRIMARY KEY",
+      "UNIQUE",
+      "CHECK",
+      "NOT NULL"
+    ],
+    "ans": 1
+  },
+  {
+    "id": 12,
+    "topic": "Constraints",
+    "category": "DDL",
+    "important": false,
+    "q": "Which referential action automatically deletes child rows when the referenced parent row is deleted?",
+    "options": [
+      "ON DELETE SET NULL",
+      "ON DELETE CASCADE",
+      "ON DELETE RESTRICT",
+      "ON UPDATE CASCADE"
+    ],
+    "ans": 1
+  },
+  {
+    "id": 13,
+    "topic": "Constraints",
+    "category": "DDL",
+    "important": false,
+    "q": "Which constraint type can ONLY be defined at the column level and not at the table level in Oracle?",
+    "options": [
+      "UNIQUE",
+      "CHECK",
+      "NOT NULL",
+      "FOREIGN KEY"
+    ],
+    "ans": 2
+  },
+  {
+    "id": 14,
+    "topic": "DML",
+    "category": "DML",
+    "important": true,
+    "q": "Which SQL statement modifies existing attribute values in one or more rows of a table?",
+    "options": [
+      "ALTER",
+      "MODIFY",
+      "UPDATE",
+      "CHANGE"
+    ],
+    "ans": 2,
+    "difficulty": "intermediate"
+  },
+  {
+    "id": 15,
+    "topic": "DML",
+    "category": "DML",
+    "important": true,
+    "q": "What happens if you execute DELETE FROM employee; without a WHERE clause?",
+    "options": [
+      "Syntax error occurs",
+      "Only the first row is deleted",
+      "All rows in the table are deleted, but the table structure remains",
+      "The table structure is dropped"
+    ],
+    "ans": 2,
+    "difficulty": "intermediate"
+  },
+  {
+    "id": 16,
+    "topic": "DML",
+    "category": "DML",
+    "important": true,
+    "q": "A source row should update an existing target with the same key, or insert a new target when no key matches. Which single Oracle statement supports both branches?",
+    "options": [
+      "INSERT ... SELECT with a WHERE filter alone",
+      "UPDATE with a correlated scalar subquery alone",
+      "MERGE with WHEN MATCHED and WHEN NOT MATCHED branches",
+      "DELETE with a correlated EXISTS subquery"
+    ],
+    "ans": 2,
+    "explanation": "MERGE supports conditional matched updates and unmatched inserts.",
+    "difficulty": "application"
+  },
+  {
+    "id": 17,
+    "topic": "TCL",
+    "category": "EXCLUDED",
+    "important": false,
+    "q": "Which TCL command makes all pending DML changes in the current transaction permanent?",
+    "options": [
+      "SAVEPOINT",
+      "COMMIT",
+      "ROLLBACK",
+      "GRANT"
+    ],
+    "ans": 1
+  },
+  {
+    "id": 18,
+    "topic": "TCL",
+    "category": "EXCLUDED",
+    "important": false,
+    "q": "Which TCL command undoes changes made only after a specific marker within an active transaction?",
+    "options": [
+      "ROLLBACK",
+      "COMMIT",
+      "ROLLBACK TO SAVEPOINT",
+      "REVOKE"
+    ],
+    "ans": 2
+  },
+  {
+    "id": 19,
+    "topic": "DCL",
+    "category": "EXCLUDED",
+    "important": false,
+    "q": "Which DCL command is used to withdraw object privileges previously given to a user?",
+    "options": [
+      "DENY",
+      "REMOVE",
+      "REVOKE",
+      "DROP PRIVILEGE"
+    ],
+    "ans": 2
+  },
+  {
+    "id": 20,
+    "topic": "DCL",
+    "category": "EXCLUDED",
+    "important": false,
+    "q": "If User A grants SELECT WITH GRANT OPTION to User B, and User B grants it to User C, what happens when User A revokes it from User B?",
+    "options": [
+      "Only User B loses access",
+      "Both User B and User C lose access",
+      "User C retains access",
+      "Revoke fails with an error"
+    ],
+    "ans": 1
+  },
+  {
+    "id": 21,
+    "topic": "SQL Execution Order",
+    "category": "DQL",
+    "important": true,
+    "q": "In what logical order does Oracle evaluate SELECT, FROM, WHERE, and GROUP BY?",
+    "options": [
+      "SELECT -> FROM -> WHERE -> GROUP BY",
+      "FROM -> WHERE -> GROUP BY -> SELECT",
+      "FROM -> GROUP BY -> WHERE -> SELECT",
+      "WHERE -> FROM -> GROUP BY -> SELECT"
+    ],
+    "ans": 1,
+    "difficulty": "intermediate"
+  },
+  {
+    "id": 22,
+    "topic": "Operators",
+    "category": "DQL",
+    "important": true,
+    "q": "Which operator is inclusive of both boundary values in Oracle SQL?",
+    "options": [
+      "IN",
+      "LIKE",
+      "BETWEEN ... AND ...",
+      "ANY"
+    ],
+    "ans": 2,
+    "difficulty": "intermediate"
+  },
+  {
+    "id": 23,
+    "topic": "Operators",
+    "category": "DQL",
+    "important": true,
+    "q": "Which wildcard character matches zero or more characters in an Oracle LIKE pattern?",
+    "options": [
+      "_",
+      "?",
+      "%",
+      "*"
+    ],
+    "ans": 2,
+    "difficulty": "intermediate"
+  },
+  {
+    "id": 24,
+    "topic": "Operators",
+    "category": "DQL",
+    "important": true,
+    "q": "Which wildcard character matches exactly one single character in an Oracle LIKE pattern?",
+    "options": [
+      "%",
+      "_",
+      "#",
+      "?"
+    ],
+    "ans": 1,
+    "difficulty": "intermediate"
+  },
+  {
+    "id": 25,
+    "topic": "NULL Handling",
+    "category": "DQL",
+    "important": true,
+    "q": "Which condition correctly tests whether the COMMISSION_PCT column contains a missing value?",
+    "options": [
+      "commission_pct = NULL",
+      "commission_pct == NULL",
+      "commission_pct IS NULL",
+      "commission_pct IN (NULL)"
+    ],
+    "ans": 2,
+    "difficulty": "intermediate"
+  },
+  {
+    "id": 26,
+    "topic": "Single-Row Functions",
+    "category": "DQL",
+    "important": true,
+    "q": "What does NVL(expr1, expr2) return in Oracle SQL when expr1 is NOT NULL?",
+    "options": [
+      "expr2",
+      "NULL",
+      "expr1",
+      "0"
+    ],
+    "ans": 2,
+    "difficulty": "intermediate"
+  },
+  {
+    "id": 27,
+    "topic": "Single-Row Functions",
+    "category": "DQL",
+    "important": true,
+    "q": "What does COALESCE(NULL, NULL, 'Oracle', 'SQL') return?",
+    "options": [
+      "NULL",
+      "Oracle",
+      "SQL",
+      "Error"
+    ],
+    "ans": 1,
+    "difficulty": "intermediate"
+  },
+  {
+    "id": 28,
+    "topic": "Single-Row Functions",
+    "category": "DQL",
+    "important": true,
+    "q": "What does SUBSTR('DATABASE', 2, 4) return in Oracle SQL?",
+    "options": [
+      "DATA",
+      "ATAB",
+      "TABA",
+      "BASE"
+    ],
+    "ans": 1,
+    "difficulty": "intermediate"
+  },
+  {
+    "id": 29,
+    "topic": "Single-Row Functions",
+    "category": "DQL",
+    "important": true,
+    "q": "What does TRUNC(SYSDATE, 'MM') return in Oracle SQL?",
+    "options": [
+      "Last day of current month",
+      "First day of current month at 00:00:00",
+      "Current date with seconds stripped",
+      "First day of current year"
+    ],
+    "ans": 1,
+    "difficulty": "intermediate"
+  },
+  {
+    "id": 30,
+    "topic": "DUAL Table",
+    "category": "DQL",
+    "important": true,
+    "q": "How many rows and columns does Oracle's built-in DUAL table contain by default?",
+    "options": [
+      "0 rows, 1 column",
+      "1 row, 1 column",
+      "1 row, 2 columns",
+      "2 rows, 1 column"
+    ],
+    "ans": 1,
+    "difficulty": "intermediate"
+  },
+  {
+    "id": 31,
+    "topic": "Aggregation & Grouping",
+    "category": "DQL",
+    "important": true,
+    "q": "Which aggregate function counts all rows in a table including rows with NULL values?",
+    "options": [
+      "COUNT(column_name)",
+      "COUNT(*)",
+      "SUM(*)",
+      "TOTAL(*)"
+    ],
+    "ans": 1,
+    "difficulty": "intermediate"
+  },
+  {
+    "id": 32,
+    "topic": "Aggregation & Grouping",
+    "category": "DQL",
+    "important": true,
+    "q": "Which clause filters grouped rows after aggregate functions have been computed?",
+    "options": [
+      "WHERE",
+      "GROUP BY",
+      "HAVING",
+      "ORDER BY"
+    ],
+    "ans": 2,
+    "difficulty": "intermediate"
+  },
+  {
+    "id": 33,
+    "topic": "Aggregation & Grouping",
+    "category": "DQL",
+    "important": true,
+    "q": "EMP has department and salary columns. Which query returns departments whose average non-null salary exceeds 50000?",
+    "options": [
+      "SELECT dept_id FROM emp WHERE AVG(salary) > 50000 GROUP BY dept_id",
+      "SELECT dept_id FROM emp GROUP BY dept_id HAVING AVG(salary) > 50000",
+      "SELECT dept_id FROM emp HAVING salary > 50000 GROUP BY dept_id",
+      "SELECT dept_id FROM emp WHERE salary > 50000 GROUP BY dept_id"
+    ],
+    "ans": 1,
+    "explanation": "HAVING filters computed groups; filtering individual salaries changes the population used by AVG.",
+    "difficulty": "application"
+  },
+  {
+    "id": 34,
+    "topic": "Set Operators",
+    "category": "DQL",
+    "important": true,
+    "q": "Which Oracle set operator returns rows from the first query that are not present in the second query?",
+    "options": [
+      "INTERSECT",
+      "UNION ALL",
+      "MINUS",
+      "EXCEPT ALL"
+    ],
+    "ans": 2,
+    "difficulty": "intermediate"
+  },
+  {
+    "id": 35,
+    "topic": "Set Operators",
+    "category": "DQL",
+    "important": true,
+    "q": "Query A returns values 1, 1, 2; query B returns 1, 3. How many rows does A UNION ALL B produce, without an outer DISTINCT?",
+    "options": [
+      "3",
+      "5",
+      "4",
+      "2"
+    ],
+    "ans": 1,
+    "explanation": "UNION ALL preserves every input row, including duplicates.",
+    "difficulty": "application"
+  },
+  {
+    "id": 36,
+    "topic": "Subqueries",
+    "category": "DQL",
+    "important": true,
+    "q": "Which operator compares a value to every value returned by a multi-row subquery?",
+    "options": [
+      "ANY",
+      "ALL",
+      "IN",
+      "EXISTS"
+    ],
+    "ans": 1,
+    "difficulty": "intermediate"
+  },
+  {
+    "id": 37,
+    "topic": "Subqueries",
+    "category": "DQL",
+    "important": true,
+    "q": "An EXISTS subquery references e.dept_id from the outer query. Which statement describes the logical dependency, without assuming a particular physical execution plan?",
+    "options": [
+      "The subquery is uncorrelated because EXISTS ignores its select list",
+      "The subquery is correlated because it depends on a value from the outer row",
+      "The subquery must materialize all outer rows before evaluating any predicate",
+      "The subquery cannot be unnested or transformed by the optimizer"
+    ],
+    "ans": 1,
+    "explanation": "Correlation is an outer reference; the optimizer may transform the physical execution strategy.",
+    "difficulty": "application"
+  },
+  {
+    "id": 38,
+    "topic": "Subqueries",
+    "category": "DQL",
+    "important": true,
+    "q": "Which operator checks whether a subquery returns at least one row without comparing column values?",
+    "options": [
+      "IN",
+      "ANY",
+      "EXISTS",
+      "ALL"
+    ],
+    "ans": 2,
+    "difficulty": "intermediate"
+  },
+  {
+    "id": 39,
+    "topic": "Joins",
+    "category": "DQL",
+    "important": true,
+    "q": "Which join returns all rows from the left table and matched rows from the right table, filling unmatched right columns with NULL?",
+    "options": [
+      "INNER JOIN",
+      "RIGHT OUTER JOIN",
+      "LEFT OUTER JOIN",
+      "CROSS JOIN"
+    ],
+    "ans": 2,
+    "difficulty": "intermediate"
+  },
+  {
+    "id": 40,
+    "topic": "Joins",
+    "category": "DQL",
+    "important": true,
+    "q": "What is the result of a CROSS JOIN between a 5-row table and a 4-row table?",
+    "options": [
+      "5 rows",
+      "9 rows",
+      "20 rows",
+      "4 rows"
+    ],
+    "ans": 2,
+    "difficulty": "intermediate"
+  },
+  {
+    "id": 41,
+    "topic": "Joins",
+    "category": "DQL",
+    "important": true,
+    "q": "Which type of join is used when a table is joined to itself (such as matching employees to their managers in the same table)?",
+    "options": [
+      "CROSS JOIN",
+      "NATURAL JOIN",
+      "SELF JOIN",
+      "FULL OUTER JOIN"
+    ],
+    "ans": 2,
+    "difficulty": "intermediate"
+  },
+  {
+    "id": 42,
+    "topic": "Joins",
+    "category": "DQL",
+    "important": true,
+    "q": "Which join type automatically joins two tables based on all columns that share the exact same name and compatible data types?",
+    "options": [
+      "CROSS JOIN",
+      "NATURAL JOIN",
+      "SELF JOIN",
+      "EQUI JOIN using ON"
+    ],
+    "ans": 1,
+    "difficulty": "intermediate"
+  },
+  {
+    "id": 43,
+    "topic": "Joins",
+    "category": "DQL",
+    "important": true,
+    "q": "Which join returns all matched rows plus all unmatched rows from BOTH the left and right tables?",
+    "options": [
+      "LEFT OUTER JOIN",
+      "RIGHT OUTER JOIN",
+      "INNER JOIN",
+      "FULL OUTER JOIN"
+    ],
+    "ans": 3,
+    "difficulty": "intermediate"
+  },
+  {
+    "id": 44,
+    "topic": "Joins",
+    "category": "DQL",
+    "important": true,
+    "q": "What happens when two tables are joined in a SELECT statement without specifying any join condition?",
+    "options": [
+      "An INNER JOIN is performed",
+      "A Cartesian product (CROSS JOIN) is produced",
+      "Oracle raises ORA-00942",
+      "Zero rows are returned"
+    ],
+    "ans": 1,
+    "difficulty": "intermediate"
+  },
+  {
+    "id": 45,
+    "topic": "Joins",
+    "category": "DQL",
+    "important": true,
+    "q": "Which join condition uses comparison operators other than equality (such as BETWEEN, <, or >) to match rows between tables?",
+    "options": [
+      "Equi-Join",
+      "Natural Join",
+      "Non-Equi Join",
+      "Cross Join"
+    ],
+    "ans": 2,
+    "difficulty": "intermediate"
+  },
+  {
+    "id": 46,
+    "topic": "DDL",
+    "category": "DDL",
+    "important": true,
+    "q": "Which table definition restricts ID to at most six integer digits, rather than six fractional digits?",
+    "options": [
+      "CREATE TABLE dept (id NUMBER(6,0))",
+      "CREATE TABLE dept (id NUMBER(6,6))",
+      "CREATE TABLE dept (id NUMBER(6,-6))",
+      "CREATE TABLE dept (id NUMBER(6,2))"
+    ],
+    "ans": 0,
+    "explanation": "NUMBER(6,0) specifies six significant digits and zero scale.",
+    "difficulty": "application"
+  },
+  {
+    "id": 47,
+    "topic": "DDL",
+    "category": "DDL",
+    "important": true,
+    "q": "Which statement removes the EMAIL column from the EMPLOYEE table?",
+    "options": [
+      "DELETE email FROM employee;",
+      "ALTER TABLE employee DROP COLUMN email;",
+      "DROP email FROM employee;",
+      "UPDATE employee DROP email;"
+    ],
+    "ans": 1,
+    "difficulty": "intermediate"
+  },
+  {
+    "id": 48,
+    "topic": "DML",
+    "category": "DML",
+    "important": true,
+    "q": "EMP has ID and NAME columns. Which statement maps the supplied values to NAME and ID in that order?",
+    "options": [
+      "INSERT INTO emp (name, id) VALUES ('Alex', 101)",
+      "INSERT INTO emp (id, name) VALUES ('Alex', 101)",
+      "INSERT INTO emp (name, id) SELECT 101, 'Alex' FROM dual",
+      "INSERT INTO emp (name, id) VALUES (101, 'Alex')"
+    ],
+    "ans": 0,
+    "explanation": "An explicit column list determines value-to-column mapping; numeric 101 belongs to ID.",
+    "difficulty": "application"
+  },
+  {
+    "id": 49,
+    "topic": "DML",
+    "category": "DML",
+    "important": true,
+    "q": "Which statement increases SALARY by 10 percent only for employees in department 20?",
+    "options": [
+      "ALTER TABLE employee SET salary = salary * 1.10 WHERE dept_id = 20;",
+      "UPDATE employee SET salary = salary * 1.10 WHERE dept_id = 20;",
+      "UPDATE employee SET salary = 1.10;",
+      "INSERT INTO employee SET salary = salary * 1.10;"
+    ],
+    "ans": 1,
+    "difficulty": "intermediate"
+  },
+  {
+    "id": 50,
+    "topic": "DML",
+    "category": "DML",
+    "important": true,
+    "q": "Which operation removes employees below the salary threshold while preserving all other rows and the table definition?",
+    "options": [
+      "DELETE FROM employee WHERE salary >= 20000",
+      "DELETE FROM employee WHERE salary < 20000",
+      "TRUNCATE TABLE employee",
+      "DROP TABLE employee"
+    ],
+    "ans": 1,
+    "explanation": "DELETE with a predicate removes only matching rows.",
+    "difficulty": "application"
+  },
+  {
+    "id": 51,
+    "topic": "SELECT & Filtering",
+    "category": "DQL",
+    "important": true,
+    "q": "T contains (dept_id, job): (10, A), (10, A), (10, B). How many rows does SELECT DISTINCT dept_id, job FROM t return?",
+    "options": [
+      "1",
+      "2",
+      "3",
+      "0"
+    ],
+    "ans": 1,
+    "explanation": "DISTINCT applies to the complete selected tuple, not only the first column.",
+    "difficulty": "application"
+  },
+  {
+    "id": 52,
+    "topic": "SELECT & Sorting",
+    "category": "DQL",
+    "important": true,
+    "q": "In Oracle, which ORDER BY clause explicitly puts the highest non-null salary first and missing salaries last?",
+    "options": [
+      "ORDER BY salary DESC NULLS LAST",
+      "ORDER BY salary DESC NULLS FIRST",
+      "ORDER BY salary ASC NULLS LAST",
+      "ORDER BY salary ASC NULLS FIRST"
+    ],
+    "ans": 0,
+    "explanation": "DESC selects descending salary order; NULLS LAST explicitly positions missing values.",
+    "difficulty": "application"
+  },
+  {
+    "id": 53,
+    "topic": "SELECT & Filtering",
+    "category": "DQL",
+    "important": true,
+    "q": "Which query returns employees whose department is either 10 or 20?",
+    "options": [
+      "SELECT * FROM employee WHERE dept_id = (10, 20);",
+      "SELECT * FROM employee WHERE dept_id IN (10, 20);",
+      "SELECT * FROM employee WHERE dept_id BETWEEN 10, 20;",
+      "SELECT * FROM employee HAVING dept_id IN 10 AND 20;"
+    ],
+    "ans": 1,
+    "difficulty": "intermediate"
+  },
+  {
+    "id": 100,
+    "topic": "Data Types",
+    "category": "DDL",
+    "important": true,
+    "difficulty": "application",
+    "q": "Oracle 19c: A column is VARCHAR2(4 BYTE). In the database character set, each supplied character occupies two bytes. Which string length fits, assuming no constraints?",
+    "options": [
+      "Four such characters",
+      "Three such characters",
+      "Two such characters",
+      "Any four characters because VARCHAR2 always counts characters"
+    ],
+    "ans": 2,
+    "explanation": "BYTE semantics bound bytes, so two two-byte characters fit within four bytes."
+  },
+  {
+    "id": 101,
+    "topic": "Data Types",
+    "category": "DDL",
+    "important": true,
+    "difficulty": "application",
+    "q": "Oracle 19c: A column must accept up to 20 characters regardless of varying encoded byte widths, within Oracle storage limits. Which declaration expresses character-length semantics explicitly?",
+    "options": [
+      "VARCHAR2(20 BYTE)",
+      "VARCHAR2(20 CHAR)",
+      "CHAR(20 BYTE)",
+      "RAW(20)"
+    ],
+    "ans": 1,
+    "explanation": "The CHAR length qualifier counts characters; it does not change VARCHAR2 to fixed width."
+  },
+  {
+    "id": 102,
+    "topic": "Data Types",
+    "category": "DDL",
+    "important": true,
+    "difficulty": "application",
+    "q": "Oracle 19c: Which statement about storing 'AB' in CHAR(5 CHAR), compared with VARCHAR2(5 CHAR), is correct?",
+    "options": [
+      "Both automatically pad the value to five characters",
+      "CHAR pads to its declared length; VARCHAR2 does not blank-pad to its maximum length",
+      "VARCHAR2 pads to five characters; CHAR keeps only two",
+      "Both reject values shorter than five characters"
+    ],
+    "ans": 1,
+    "explanation": "CHAR is fixed length and blank-padded; VARCHAR2 stores variable-length character values."
+  },
+  {
+    "id": 103,
+    "topic": "Data Types",
+    "category": "DDL",
+    "important": true,
+    "difficulty": "application",
+    "q": "Oracle 19c: For NUMBER(5,2), which positive value can be stored without rounding or a precision error?",
+    "options": [
+      "1234.5",
+      "123.45",
+      "12345.0",
+      "1234.56"
+    ],
+    "ans": 1,
+    "explanation": "Precision five and scale two leave three integer digits."
+  },
+  {
+    "id": 104,
+    "topic": "Data Types",
+    "category": "DDL",
+    "important": true,
+    "difficulty": "application",
+    "q": "Oracle 19c: What is the stored numeric value when 12.346 is assigned to NUMBER(5,2)?",
+    "options": [
+      "12.34",
+      "12.35",
+      "12.346",
+      "The value is rejected solely because its input has three fractional digits"
+    ],
+    "ans": 1,
+    "explanation": "Oracle rounds to the specified scale when precision still permits the rounded value."
+  },
+  {
+    "id": 105,
+    "topic": "Data Types",
+    "category": "DDL",
+    "important": true,
+    "difficulty": "application",
+    "q": "Oracle 19c: What happens when 999.995 is assigned to NUMBER(5,2)?",
+    "options": [
+      "It becomes 999.99 by truncation",
+      "It becomes 1000.00 and is stored",
+      "It is rejected because rounding exceeds the allowed precision",
+      "It is stored as 999.995 without changing scale"
+    ],
+    "ans": 2,
+    "explanation": "Rounding yields 1000.00, exceeding the available three integer digits."
+  },
+  {
+    "id": 106,
+    "topic": "Data Types",
+    "category": "DDL",
+    "important": true,
+    "difficulty": "application",
+    "q": "Oracle 19c: What happens when 12549 is assigned to NUMBER(5,-2)?",
+    "options": [
+      "It rounds to 12500",
+      "It becomes 125.49",
+      "It rounds to 12600",
+      "Negative scale is not permitted"
+    ],
+    "ans": 0,
+    "explanation": "Negative scale rounds to digits left of the decimal point; scale -2 rounds to hundreds."
+  },
+  {
+    "id": 107,
+    "topic": "Data Types",
+    "category": "DDL",
+    "important": true,
+    "difficulty": "application",
+    "q": "Oracle 19c: Which statement about NUMBER(6) is correct?",
+    "options": [
+      "It is equivalent to NUMBER(6,0)",
+      "It is equivalent to NUMBER(6,6)",
+      "It reserves six bytes for every value",
+      "It always preserves all fractional digits"
+    ],
+    "ans": 0,
+    "explanation": "NUMBER(p) defaults to scale zero; precision is not a byte allocation."
+  },
+  {
+    "id": 108,
+    "topic": "Data Types",
+    "category": "DDL",
+    "important": true,
+    "difficulty": "application",
+    "q": "Oracle 19c: Which components are represented by the DATE data type?",
+    "options": [
+      "Year, month and day only",
+      "Year through seconds, without fractional seconds or a stored time-zone field",
+      "Year through fractional seconds plus a time-zone region",
+      "Only a numeric count of whole days"
+    ],
+    "ans": 1,
+    "explanation": "Oracle DATE includes hour, minute and second; TIMESTAMP adds fractional seconds."
+  },
+  {
+    "id": 109,
+    "topic": "Data Types",
+    "category": "DDL",
+    "important": true,
+    "difficulty": "application",
+    "q": "Oracle 19c: An application needs fractional seconds but no stored time-zone offset or region. Which type directly matches that requirement?",
+    "options": [
+      "DATE",
+      "TIMESTAMP",
+      "TIMESTAMP WITH TIME ZONE",
+      "INTERVAL YEAR TO MONTH"
+    ],
+    "ans": 1,
+    "explanation": "Plain TIMESTAMP adds fractional-second precision without time-zone fields."
+  },
+  {
+    "id": 110,
+    "topic": "Data Types",
+    "category": "DDL",
+    "important": true,
+    "difficulty": "application",
+    "q": "Oracle 19c: Which data type explicitly carries time-zone information along with a timestamp value?",
+    "options": [
+      "DATE",
+      "TIMESTAMP",
+      "TIMESTAMP WITH TIME ZONE",
+      "INTERVAL DAY TO SECOND"
+    ],
+    "ans": 2,
+    "explanation": "TIMESTAMP WITH TIME ZONE includes a time-zone displacement or region."
+  },
+  {
+    "id": 111,
+    "topic": "Data Types",
+    "category": "DDL",
+    "important": true,
+    "difficulty": "application",
+    "q": "Oracle 19c: Which type best models an elapsed duration of 3 days, 4 hours and 5 seconds rather than a calendar date?",
+    "options": [
+      "INTERVAL DAY TO SECOND",
+      "INTERVAL YEAR TO MONTH",
+      "DATE",
+      "TIMESTAMP WITH TIME ZONE"
+    ],
+    "ans": 0,
+    "explanation": "DAY TO SECOND models days and sub-day duration fields."
+  },
+  {
+    "id": 112,
+    "topic": "Data Types",
+    "category": "DDL",
+    "important": true,
+    "difficulty": "application",
+    "q": "Oracle 19c: Which declaration represents a national-character-set, variable-length string?",
+    "options": [
+      "CHAR(40 CHAR)",
+      "VARCHAR2(40 CHAR)",
+      "NVARCHAR2(40)",
+      "RAW(40)"
+    ],
+    "ans": 2,
+    "explanation": "NVARCHAR2 uses the national character set and variable length."
+  },
+  {
+    "id": 113,
+    "topic": "Data Types",
+    "category": "DDL",
+    "important": true,
+    "difficulty": "application",
+    "q": "Oracle 19c: A table must store binary document content inside the database, without character-set conversion. Which LOB is appropriate?",
+    "options": [
+      "CLOB",
+      "NCLOB",
+      "BLOB",
+      "BFILE"
+    ],
+    "ans": 2,
+    "explanation": "BLOB stores binary content internally; BFILE refers to an external file."
+  },
+  {
+    "id": 114,
+    "topic": "Data Types",
+    "category": "DDL",
+    "important": true,
+    "difficulty": "application",
+    "q": "Oracle 19c: A VARCHAR2 column is declared NOT NULL. What happens if an INSERT supplies '' as its value?",
+    "options": [
+      "A distinct empty string is accepted",
+      "It is treated as NULL and the NOT NULL constraint rejects it",
+      "It is converted to a single blank and accepted",
+      "It becomes the literal characters NULL"
+    ],
+    "ans": 1,
+    "explanation": "Oracle 19c treats zero-length character strings as NULL."
+  },
+  {
+    "id": 115,
+    "topic": "Data Types",
+    "category": "DDL",
+    "important": true,
+    "difficulty": "application",
+    "q": "Oracle 19c: Which expression produces a DATE value without relying on the session NLS_DATE_FORMAT to interpret a character string?",
+    "options": [
+      "DATE '2026-11-20'",
+      "'20-11-2026'",
+      "CAST('20-11-2026' AS DATE)",
+      "TO_DATE('20-11-2026')"
+    ],
+    "ans": 0,
+    "explanation": "An ANSI DATE literal uses a defined year-month-day syntax."
+  },
+  {
+    "id": 116,
+    "topic": "Constraints",
+    "category": "DDL",
+    "important": true,
+    "difficulty": "application",
+    "q": "Oracle 19c: A nullable SALARY column has CHECK (salary > 0). Which value passes that CHECK without any additional constraint?",
+    "options": [
+      "-1",
+      "0",
+      "NULL",
+      "All three fail the CHECK"
+    ],
+    "ans": 2,
+    "explanation": "A CHECK rejects FALSE; an UNKNOWN result from NULL is allowed unless NOT NULL also applies."
+  },
+  {
+    "id": 117,
+    "topic": "Constraints",
+    "category": "DDL",
+    "important": true,
+    "difficulty": "application",
+    "q": "Oracle 19c: A nullable STATUS column has CHECK (status IN ('A','I')). The business rule also forbids missing status. What is needed?",
+    "options": [
+      "Only the existing CHECK",
+      "A NOT NULL constraint in addition to the CHECK",
+      "A UNIQUE constraint in addition to the CHECK",
+      "Replacing CHECK with DEFAULT only"
+    ],
+    "ans": 1,
+    "explanation": "The membership CHECK does not reject UNKNOWN; NOT NULL enforces presence."
+  },
+  {
+    "id": 118,
+    "topic": "Constraints",
+    "category": "DDL",
+    "important": true,
+    "difficulty": "application",
+    "q": "Oracle 19c: Which statement about a PRIMARY KEY on (order_id, line_no) is correct?",
+    "options": [
+      "Each column must be independently unique",
+      "The combination is unique and neither component may be NULL",
+      "The combination is unique but line_no may be NULL",
+      "Only order_id is checked for NULL"
+    ],
+    "ans": 1,
+    "explanation": "A composite primary key enforces tuple uniqueness and NOT NULL on every key component."
+  },
+  {
+    "id": 119,
+    "topic": "Constraints",
+    "category": "DDL",
+    "important": true,
+    "difficulty": "application",
+    "q": "Oracle 19c: T has PRIMARY KEY (a,b). After (1,1) exists, which additional row can satisfy that key?",
+    "options": [
+      "(1,1)",
+      "(1,NULL)",
+      "(NULL,2)",
+      "(1,2)"
+    ],
+    "ans": 3,
+    "explanation": "A repeated first component is allowed if the complete non-null combination differs."
+  },
+  {
+    "id": 120,
+    "topic": "Constraints",
+    "category": "DDL",
+    "important": true,
+    "difficulty": "application",
+    "q": "Oracle 19c: A nullable column EMAIL has a single-column UNIQUE constraint. Which pair of inserts can both satisfy this constraint?",
+    "options": [
+      "('a@x'), ('a@x')",
+      "(NULL), (NULL)",
+      "('b@x'), ('b@x')",
+      "Two identical non-null values of any kind"
+    ],
+    "ans": 1,
+    "explanation": "A nullable single-column unique key permits multiple NULL entries."
+  },
+  {
+    "id": 121,
+    "topic": "Constraints",
+    "category": "DDL",
+    "important": true,
+    "difficulty": "application",
+    "q": "Oracle 19c: T has UNIQUE (a,b). A row (10,NULL) already exists. Which additional row violates this composite unique constraint?",
+    "options": [
+      "(10,NULL)",
+      "(11,NULL)",
+      "(NULL,NULL)",
+      "(NULL,20)"
+    ],
+    "ans": 0,
+    "explanation": "Matching non-null components with the same partial-null key violate Oracle composite uniqueness."
+  },
+  {
+    "id": 122,
+    "topic": "Constraints",
+    "category": "DDL",
+    "important": true,
+    "difficulty": "application",
+    "q": "Oracle 19c: A child foreign key may reference which parent-column definition?",
+    "options": [
+      "Any indexed parent column",
+      "A parent PRIMARY KEY or UNIQUE key with compatible corresponding types",
+      "Any parent column having a CHECK constraint",
+      "Any parent column with a DEFAULT"
+    ],
+    "ans": 1,
+    "explanation": "A referenced parent key must be protected by a primary or unique constraint."
+  },
+  {
+    "id": 123,
+    "topic": "Constraints",
+    "category": "DDL",
+    "important": true,
+    "difficulty": "application",
+    "q": "Oracle 19c: P has key ID=7 and a child row references 7. The FK has no ON DELETE clause. What happens when that parent is deleted while the child remains?",
+    "options": [
+      "The child is automatically deleted",
+      "The child key becomes NULL automatically",
+      "The delete is rejected by referential integrity",
+      "The parent is deleted and an orphan remains"
+    ],
+    "ans": 2,
+    "explanation": "Without an applicable delete action, a referenced parent cannot be removed while children remain."
+  },
+  {
+    "id": 124,
+    "topic": "Constraints",
+    "category": "DDL",
+    "important": true,
+    "difficulty": "application",
+    "q": "Oracle 19c: A nullable child FK uses ON DELETE SET NULL. Its referenced parent row is deleted. What happens to the child row?",
+    "options": [
+      "The whole child row is deleted",
+      "Its foreign-key value becomes NULL; other child columns remain",
+      "The FK receives the parent default value",
+      "The child row becomes disabled"
+    ],
+    "ans": 1,
+    "explanation": "SET NULL preserves the child row but clears its referencing value."
+  },
+  {
+    "id": 125,
+    "topic": "Constraints",
+    "category": "DDL",
+    "important": true,
+    "difficulty": "application",
+    "q": "Oracle 19c: A child FK uses ON DELETE CASCADE. What does deleting a referenced parent do?",
+    "options": [
+      "Deletes matching child rows",
+      "Deletes all rows in the child table",
+      "Sets only the child FK columns to NULL",
+      "Drops the child table"
+    ],
+    "ans": 0,
+    "explanation": "CASCADE removes dependent child rows matching the deleted parent key."
+  },
+  {
+    "id": 126,
+    "topic": "Constraints",
+    "category": "DDL",
+    "important": true,
+    "difficulty": "application",
+    "q": "Oracle 19c: Which constraint requires inline column syntax rather than an out-of-line table constraint?",
+    "options": [
+      "PRIMARY KEY",
+      "UNIQUE",
+      "NOT NULL",
+      "CHECK"
+    ],
+    "ans": 2,
+    "explanation": "NOT NULL must be declared inline on the column."
+  },
+  {
+    "id": 127,
+    "topic": "Constraints",
+    "category": "DDL",
+    "important": true,
+    "difficulty": "application",
+    "q": "Oracle 19c: A table rule requires end_date >= start_date in the same row. Which constraint directly expresses the relationship?",
+    "options": [
+      "CHECK (end_date >= start_date)",
+      "FOREIGN KEY (end_date) REFERENCES start_date",
+      "UNIQUE (start_date, end_date)",
+      "DEFAULT (end_date >= start_date)"
+    ],
+    "ans": 0,
+    "explanation": "A table-level CHECK can compare columns of the same row; NULL handling may require separate presence constraints."
+  },
+  {
+    "id": 128,
+    "topic": "Constraints",
+    "category": "DDL",
+    "important": true,
+    "difficulty": "application",
+    "q": "Oracle 19c: A CHECK constraint must enforce SALARY above a threshold stored in another table. Which approach is valid as a direct CHECK definition?",
+    "options": [
+      "A scalar SELECT subquery in the CHECK",
+      "An EXISTS subquery in the CHECK",
+      "A JOIN in the CHECK",
+      "None: Oracle CHECK constraints cannot contain subqueries"
+    ],
+    "ans": 3,
+    "explanation": "A CHECK cannot query another table through a subquery."
+  },
+  {
+    "id": 129,
+    "topic": "Constraints",
+    "category": "DDL",
+    "important": true,
+    "difficulty": "application",
+    "q": "Oracle 19c: Which constraint definition can enforce one primary key made of two columns?",
+    "options": [
+      "Two separate PRIMARY KEY constraints, one on each column",
+      "One table-level PRIMARY KEY (a,b)",
+      "UNIQUE(a) and CHECK(b IS NOT NULL) only",
+      "DEFAULT(a,b)"
+    ],
+    "ans": 1,
+    "explanation": "A table has one primary key constraint, which may be composite."
+  },
+  {
+    "id": 130,
+    "topic": "Constraints",
+    "category": "DDL",
+    "important": true,
+    "difficulty": "application",
+    "q": "Oracle 19c: What does ENABLE NOVALIDATE generally do for a previously unvalidated CHECK constraint?",
+    "options": [
+      "Validates every existing row but ignores new rows",
+      "Enforces subsequent relevant DML without certifying all pre-existing rows",
+      "Disables enforcement for both existing and new rows",
+      "Deletes pre-existing rows that violate the rule"
+    ],
+    "ans": 1,
+    "explanation": "NOVALIDATE does not certify existing data; ENABLE enforces the rule for subsequent DML."
+  },
+  {
+    "id": 131,
+    "topic": "Constraints",
+    "category": "DDL",
+    "important": true,
+    "difficulty": "application",
+    "q": "Oracle 19c: A nullable child FOREIGN KEY (a,b) references a composite parent key. Which statement is correct when a child row has a NULL in a key component?",
+    "options": [
+      "The foreign key alone always rejects the row",
+      "Oracle requires every component to be NULL together",
+      "The foreign key alone does not require a parent match for that partial-null row",
+      "Oracle silently substitutes a matching parent value"
+    ],
+    "ans": 2,
+    "explanation": "Under Oracle match-none behavior, partial-null composite foreign keys do not require a matching parent; add checks if all-or-none is required."
+  }
+];
+
+// Apps Script backend. Add QuestionBank.gs to the same PRIVATE Apps Script project.
+const SETTINGS_SHEET = "Settings";
+const RESULTS_SHEET = "Results";
+const ATTEMPTS_SHEET = "Attempts";
+const STUDENTS_SHEET = "Students";
+const EXAM_SIZE = 40;
+const DEFAULT_DURATION = 60;
+const API_VERSION = 3;
+function adminPasskey() {
+  const key = PropertiesService.getScriptProperties().getProperty("ADMIN_PASSKEY");
+  if (!key) throw new Error("Faculty access is not configured. Set ADMIN_PASSKEY in Apps Script properties.");
+  return key;
+}
+function doGet(e) {
+  try {
+    const params = e && e.parameter || {};
+    if (!params.action || params.action === "status") return jsonResponse(getExamWindowStatus());
+    return jsonResponse({status:"error",message:"Unknown action."});
+  } catch (err) { return jsonResponse({status:"error",message:err.message}); }
+}
+function doPost(e) {
+  let lock = null;
+  try {
+    const contents=e && e.postData && e.postData.contents;
+    if(typeof contents!=="string" || contents.length>65536)throw new Error("Invalid request size.");
+    const data = JSON.parse(contents);
+    if(!data || typeof data!=="object" || Array.isArray(data))throw new Error("Invalid request.");
+    if(data.action === "results"){
+      verifyAdmin(data.key);
+      return jsonResponse({status:"ok",window:getExamWindowStatus(),results:getAllResults()});
+    }
+    lock = LockService.getScriptLock(); lock.waitLock(30000);
+    if (data.action === "updateWindow") {
+      verifyAdmin(data.key);
+      const open = new Date(data.openTime), close = new Date(data.closeTime);
+      if (!isFinite(open.getTime()) || !isFinite(close.getTime()) || close <= open) throw new Error("Enter a valid opening and closing time.");
+      const ss=SpreadsheetApp.getActiveSpreadsheet();
+      let sheet=ss.getSheetByName(SETTINGS_SHEET);
+      if(!sheet){sheet=ss.insertSheet(SETTINGS_SHEET);sheet.appendRow(["Key","Value"]);}
+      const values=sheet.getDataRange().getValues();
+      [["OPEN_TIME",data.openTime],["CLOSE_TIME",data.closeTime]].forEach(pair=>{
+        const index=values.findIndex(row=>row[0]===pair[0]);
+        if(index>=0)sheet.getRange(index+1,2).setValue(pair[1]);else sheet.appendRow(pair);
+      });
+      SpreadsheetApp.flush();
+      return jsonResponse({status:"ok",message:"Exam window updated successfully.",window:getExamWindowStatus()});
+    }
+    const roll = normalizeRoll(data.rollNo);
+    if (!/^[A-Z0-9][A-Z0-9._\/-]{2,59}$/.test(roll)) throw new Error("Enter a valid university roll number (3–60 characters).");
+    if (data.action === "startAttempt") return jsonResponse(startAttempt(data, roll));
+    if(data.action === "resumeAttempt"){
+      const saved=findAttempt(roll);
+      if(!saved || !data.token || saved.value.token!==data.token)throw new Error("Your session could not be verified. Sign in again with your access code.");
+      const value=saved.value;
+      applyClosingDeadline(value);
+      value.result=value.result || recordedResult(roll);
+      if(!value.result && Date.now()>value.deadline+15000)value.result=gradeAttempt(value);
+      if(value.result)ensureResultSaved(value);
+      writeAttempt(saved.row,value);
+      return jsonResponse({status:"ok",attempt:publicAttempt(value),result:value.result || null,serverNow:Date.now()});
+    }
+    if (data.action === "recoverAttempt") {
+      verifyStudent(roll, data.accessCode);
+      const saved = findAttempt(roll);
+      if (!saved) throw new Error("The original attempt is missing from the server. Ask your teacher to restore its Attempts record. Your device answers have not been deleted.");
+      const value = saved.value;
+      const ids = value.questions.map(q => q.id);
+      if (value.startedAt !== data.startedAt || JSON.stringify(ids) !== JSON.stringify(data.questionIds)) {
+        throw new Error("The server holds a different attempt for this roll number. Ask your teacher to restore the original Attempts record. Saved answers cannot be transferred to a different exam.");
+      }
+      if(value.result)ensureResultSaved(value);
+      return jsonResponse({status:"ok",attempt:publicAttempt(value),result:value.result || recordedResult(roll),serverNow:Date.now()});
+    }
+    if (data.action !== "saveAttempt" && data.action !== "submit" && data.action !== "submitQuestion") throw new Error("Unknown action.");
+    const stored = findAttempt(roll);
+    if (!stored || !data.token || stored.value.token !== data.token) throw new Error("Your session could not be verified. Sign in again with your access code.");
+    const attempt = stored.value;
+    // A response can be lost after a successful spreadsheet write. Retries return the same result.
+    if (!attempt.result && data.action === "submit") attempt.result = recordedResult(roll);
+    if (attempt.result) {
+      ensureResultSaved(attempt);
+      writeAttempt(stored.row,attempt);
+      return jsonResponse({status:"ok",result:attempt.result});
+    }
+    applyClosingDeadline(attempt);
+    const now=Date.now();
+    if(data.action === "submitQuestion") {
+      if(now>attempt.deadline)throw new Error("Time has expired. Submit the exam to view your result.");
+      const question=attempt.questions.find(q=>q.id===data.questionId);
+      if(!question)throw new Error("Invalid question.");
+      if((attempt.lockedQuestions || []).includes(question.id))throw new Error("This question is locked.");
+      updateAnswers(attempt,data);
+      if(!Number.isInteger(attempt.answers[question.id]))throw new Error("Select an answer first.");
+      writeAttempt(stored.row,attempt);
+      return jsonResponse({status:"ok",questionId:question.id,message:"Answer saved successfully."});
+    }
+    if (data.action === "saveAttempt") {
+      if(now>attempt.deadline+15000){
+        attempt.result=gradeAttempt(attempt);ensureResultSaved(attempt);writeAttempt(stored.row,attempt);
+        return jsonResponse({status:"ok",result:attempt.result});
+      }
+      if(now<=attempt.deadline){updateAnswers(attempt,data);writeAttempt(stored.row,attempt);}
+      return jsonResponse({status:"ok",serverNow:now,deadline:attempt.deadline,lockedQuestions:attempt.lockedQuestions || [],answers:attempt.answers});
+    }
+    // Allow 15 seconds for the final request to arrive. Later retries grade the last online save.
+    if(now<=attempt.deadline+15000) updateAnswers(attempt,data);
+    attempt.result = gradeAttempt(attempt);
+    appendResult(attempt);
+    SpreadsheetApp.flush();
+    writeAttempt(stored.row,attempt);
+    return jsonResponse({status:"ok",result:attempt.result});
+  } catch(err) { return jsonResponse({status:"error",message:err.message || String(err)}); }
+  finally { if(lock && lock.hasLock()){try{SpreadsheetApp.flush();}finally{lock.releaseLock();}} }
+}
+// Short-lived per-account limits slow credential guessing. Cache expiry releases the limit.
+function authCache(){return typeof CacheService!=="undefined"?CacheService.getScriptCache():null;}
+function checkAuthLimit(id){const cache=authCache();if(cache && Number(cache.get(id)||0)>=8)throw new Error("Too many failed sign-in attempts. Wait one minute and try again.");}
+function recordAuthFailure(id){const cache=authCache();if(cache)cache.put(id,String(Number(cache.get(id)||0)+1),60);}
+function clearAuthFailures(id){const cache=authCache();if(cache)cache.remove(id);}
+function verifyAdmin(key){
+  const id="auth:faculty";checkAuthLimit(id);
+  if(!key || key!==adminPasskey()){recordAuthFailure(id);throw new Error("Invalid teacher passkey.");}
+  clearAuthFailures(id);
+}
+function verifyStudent(roll, code) {
+  const limitId="auth:student:"+roll;checkAuthLimit(limitId);
+  const sheet=SpreadsheetApp.getActiveSpreadsheet().getSheetByName(STUDENTS_SHEET);
+  if(!sheet || sheet.getLastRow()<2) throw new Error("Student access is not configured. Ask your teacher to set up the student roster.");
+  const rolls=sheet.getRange(2,1,sheet.getLastRow()-1,1).getDisplayValues();
+  const index=rolls.findIndex(r=>normalizeRoll(r[0])===roll);
+  const row=index<0?null:sheet.getRange(index+2,1,1,3).getDisplayValues()[0];
+  if(!row || !code || String(row[2])!==String(code)){recordAuthFailure(limitId);throw new Error("The roll number or student access code is incorrect.");}
+  clearAuthFailures(limitId);
+  return {name:String(row[1]).trim()};
+}
+function startAttempt(data, roll) {
+  const student=verifyStudent(roll,data.accessCode);
+  const stored=findAttempt(roll);
+  if(stored){
+    const attempt=stored.value;
+    applyClosingDeadline(attempt);
+    attempt.result=attempt.result || recordedResult(roll);
+    if(!attempt.result && Date.now()>attempt.deadline+15000){
+      attempt.result=gradeAttempt(attempt);appendResult(attempt);SpreadsheetApp.flush();
+    }
+    if(attempt.result)ensureResultSaved(attempt);
+    writeAttempt(stored.row,attempt);
+    return {status:"ok",attempt:publicAttempt(attempt),result:attempt.result || null,serverNow:Date.now()};
+  }
+  if(recordedResult(roll)) throw new Error("Only one attempt is allowed. This roll number has already submitted the exam.");
+  const win=getExamWindowStatus();
+  if(!win.isOpen) throw new Error(win.message || "The exam is not open.");
+  const pool=MASTER_QUESTION_BANK.filter(q=>q.important===true && ["DDL","DML","DQL"].includes(q.category)).slice();
+  if(pool.length<EXAM_SIZE) throw new Error("The deployed question bank has only "+pool.length+" eligible questions out of "+MASTER_QUESTION_BANK.length+". Update both Code.gs and QuestionBank.gs in this deployment, or use the combined Apps Script file.");
+  for(let i=pool.length-1;i>0;i--){const j=Math.floor(Math.random()*(i+1));[pool[i],pool[j]]=[pool[j],pool[i]];}
+  const now=Date.now();
+  const name=student.name || String(data.name || "").trim();
+  const batch=String(data.batch || "").trim();
+  if(!name || name.length>120 || !batch || batch.length>180) throw new Error("Complete your name and academic details.");
+  const attempt={roll:roll,name:name,batch:batch,token:Utilities.getUuid(),startedAt:now,
+    deadline:Math.min(now+win.durationMinutes*60000,new Date(win.closeISO).getTime()),
+    updatedAt:now,questions:balanceAnswerPositions(selectExamQuestions(pool)),answers:{},flags:[],lockedQuestions:[],seenQuestions:[],currentIdx:0,tabSwitches:0,focusLosses:0,result:null};
+  const sheet=attemptSheet();sheet.appendRow([roll,attempt.token,JSON.stringify(attempt)]);SpreadsheetApp.flush();
+  return {status:"ok",attempt:publicAttempt(attempt),serverNow:now};
+}
+// Guaranteed detailed coverage in every new 40-question paper.
+function selectExamQuestions(pool){
+  const groups=[
+    [8,q=>q.topic==="Data Types"],
+    [8,q=>q.topic==="Constraints"],
+    [6,q=>q.category==="DDL" && !["Data Types","Constraints"].includes(q.topic)],
+    [6,q=>q.category==="DML"],
+    [12,q=>q.category==="DQL"]
+  ];
+  const selected=[];
+  groups.forEach(([count,predicate])=>{
+    const items=pool.filter(predicate);
+    if(items.length<count)throw new Error("The question bank lacks the required topic coverage. Update QuestionBank.gs.");
+    for(let i=items.length-1;i>0;i--){const j=Math.floor(Math.random()*(i+1));[items[i],items[j]]=[items[j],items[i]];}
+    selected.push(...items.slice(0,count));
+  });
+  for(let i=selected.length-1;i>0;i--){const j=Math.floor(Math.random()*(i+1));[selected[i],selected[j]]=[selected[j],selected[i]];}
+  return selected;
+}
+// Assign a shuffled, exactly balanced answer-position schedule per new attempt.
+function balanceAnswerPositions(questions){
+  if(questions.length!==40)throw new Error("Balanced exams require exactly 40 questions.");
+  const positions=Array.from({length:40},(_,i)=>i%4);
+  for(let i=positions.length-1;i>0;i--){const j=Math.floor(Math.random()*(i+1));[positions[i],positions[j]]=[positions[j],positions[i]];}
+  return questions.map((q,index)=>{
+    if(!Array.isArray(q.options) || q.options.length!==4 || !Number.isInteger(q.ans) || q.ans<0 || q.ans>3)throw new Error("Each exam question must have four options and a valid answer key.");
+    const distractors=q.options.filter((_,i)=>i!==q.ans);
+    for(let i=distractors.length-1;i>0;i--){const j=Math.floor(Math.random()*(i+1));[distractors[i],distractors[j]]=[distractors[j],distractors[i]];}
+    const options=distractors.slice();options.splice(positions[index],0,q.options[q.ans]);
+    return Object.assign({},q,{options:options,ans:positions[index]});
+  });
+}
+function publicAttempt(attempt){
+  return {roll:attempt.roll,name:attempt.name,batch:attempt.batch,token:attempt.token,startedAt:attempt.startedAt,deadline:attempt.deadline,updatedAt:attempt.updatedAt || attempt.startedAt,
+    questions:attempt.questions.map(q=>({id:q.id,topic:q.topic,q:q.q,options:q.options})),
+    answers:attempt.answers,flags:attempt.flags,seenQuestions:attempt.seenQuestions || [],lockedQuestions:attempt.lockedQuestions || [],currentIdx:attempt.currentIdx,tabSwitches:attempt.tabSwitches,focusLosses:attempt.focusLosses || 0};
+}
+function attemptSheet(){
+  const ss=SpreadsheetApp.getActiveSpreadsheet();let sheet=ss.getSheetByName(ATTEMPTS_SHEET);
+  if(!sheet){sheet=ss.insertSheet(ATTEMPTS_SHEET);sheet.appendRow(["Roll Number","Attempt Token","Attempt JSON"]);}
+  return sheet;
+}
+function findAttempt(roll){
+  const sheet=SpreadsheetApp.getActiveSpreadsheet().getSheetByName(ATTEMPTS_SHEET);
+  if(!sheet || sheet.getLastRow()<2)return null;
+  // Read the small roll-number column, then only this student's large JSON cell.
+  const rolls=sheet.getRange(2,1,sheet.getLastRow()-1,1).getValues();
+  const index=rolls.findIndex(row=>normalizeRoll(row[0])===roll);
+  if(index>=0)return {row:index+2,value:JSON.parse(sheet.getRange(index+2,3).getValues()[0][0])};
+  return null;
+}
+function writeAttempt(row,attempt){attemptSheet().getRange(row,3).setValue(JSON.stringify(attempt));}
+function updateAnswers(attempt,data){
+  if(!data.answers || typeof data.answers!=="object" || Array.isArray(data.answers))throw new Error("Invalid answer data.");
+  const clean={};
+  attempt.questions.forEach(q=>{
+    // Once recorded, a lock cannot be removed by a later save, refresh or final submission.
+    const selected=(attempt.lockedQuestions || []).includes(q.id) ? attempt.answers[q.id] : data.answers[q.id];
+    if(selected!==undefined){if(!Number.isInteger(selected) || selected<0 || selected>=q.options.length)throw new Error("Invalid answer option.");clean[q.id]=selected;}
+  });
+  const ids=attempt.questions.map(q=>q.id);
+  attempt.seenQuestions=[...new Set([...(attempt.seenQuestions || []), ...(Array.isArray(data.seenQuestions)?data.seenQuestions:[])])].filter(id=>ids.includes(id));
+  const lostFocus=Number(data.tabSwitches)>(attempt.tabSwitches || 0) || Number(data.focusLosses)>(attempt.focusLosses || 0);
+  attempt.updatedAt=Date.now();
+  attempt.answers=clean;
+  attempt.lockedQuestions=[...new Set([...(attempt.lockedQuestions || []), ...(Array.isArray(data.lockedQuestions)?data.lockedQuestions:[]), ...(lostFocus?attempt.seenQuestions:[])])].filter(id=>ids.includes(id));
+  attempt.flags=Array.isArray(data.flags)?[...new Set(data.flags)].filter(id=>ids.includes(id)):[];
+  attempt.currentIdx=Number.isInteger(data.currentIdx)?Math.max(0,Math.min(ids.length-1,data.currentIdx)):0;
+  for(const key of ["focusLosses","tabSwitches"]){if(data[key]!==undefined && (!Number.isSafeInteger(data[key]) || data[key]<0))throw new Error("Invalid event count.");}
+  attempt.focusLosses=Math.max(attempt.focusLosses || 0,Math.max(0,Math.floor(Number(data.focusLosses)||0)));
+  attempt.tabSwitches=Math.max(attempt.tabSwitches || 0,Math.max(0,Number(data.tabSwitches)||0));
+}
+function gradeAttempt(attempt){
+  const details=attempt.questions.map((q,i)=>{
+    const selected=attempt.answers[q.id];const mark=selected===q.ans?1:0;
+    return {qNo:i+1,questionId:q.id,selected:Number.isInteger(selected)?selected:"NA",mark:mark,
+      status:selected===undefined?"unattempted":mark?"correct":"wrong"};
+  });
+  const correct=details.filter(d=>d.status==="correct").length,wrong=details.filter(d=>d.status==="wrong").length;
+  return {score:correct,totalQuestions:details.length,percentage:Math.round(correct/details.length*10000)/100,
+    correctCount:correct,wrongCount:wrong,unattemptedCount:details.length-correct-wrong,details:details,
+    submittedAt:new Date().toISOString(),timeTakenSec:Math.max(0,Math.round((Math.min(Date.now(),attempt.deadline)-attempt.startedAt)/1000))};
+}
+function safeCell(value){const text=String(value || "");return /^[=+@\-]/.test(text)?"'"+text:text;}
+// Resolve both the original nine-column Results layout and the newer detailed layout.
+function resultColumn(headers, names){return headers.findIndex(h=>names.includes(String(h).trim()));}
+function readResult(headers,row){
+  const value=(names,fallback="")=>{const i=resultColumn(headers,names);return i<0 || row[i]===undefined || row[i]===""?fallback:row[i];};
+  const score=Number(value(["Total Score","Score"],0)),total=Number(value(["Max Marks","TotalQuestions"],40));
+  let details=[];const raw=value(["Question Breakdown JSON"]);
+  if(raw){try{details=JSON.parse(raw);}catch(_){details=[];}}
+  return {timestamp:value(["Timestamp (IST)","Timestamp"]),rollNo:value(["Roll Number","RollNumber"]),name:value(["Student Name","StudentName"]),batch:value(["Batch"]),
+    score:score,maxMarks:total,tabSwitches:value(["TabSwitches"]),focusLosses:value(["FocusLosses"]),lockedQuestions:value(["LockedQuestions"]),percentage:total?Math.round(score/total*10000)/100:0,
+    correct:value(["Correct"],details.length?details.filter(d=>d.status==="correct").length:""),
+    wrong:value(["Wrong"],details.length?details.filter(d=>d.status==="wrong").length:""),
+    unattempted:value(["Unattempted"],details.length?details.filter(d=>d.status==="unattempted").length:""),details:details,
+    qMarks:headers.flatMap((h,i)=>/^Q\d+_Marks$/.test(String(h))?[{q:String(h).replace("_Marks",""),mark:row[i]??""}]:[])};
+}
+function appendResult(attempt){
+  const ss=SpreadsheetApp.getActiveSpreadsheet();let sheet=ss.getSheetByName(RESULTS_SHEET);
+  if(!sheet)sheet=ss.insertSheet(RESULTS_SHEET);
+  if(!sheet.getLastRow())sheet.appendRow(["Timestamp (IST)","Roll Number","Student Name","Batch","Total Score","Max Marks","Correct","Wrong","Unattempted","Question Breakdown JSON"]);
+  const headers=sheet.getRange(1,1,1,sheet.getLastColumn()).getValues()[0].map(String);
+  const originalHeaderCount=headers.length;
+  if(resultColumn(headers,["Roll Number","RollNumber"])<0 || resultColumn(headers,["Score","Total Score"])<0)throw new Error("Results headers are not recognized. Keep RollNumber/Score or Roll Number/Total Score headers.");
+  const r=attempt.result;
+  const fields=[[["Timestamp (IST)","Timestamp"],Utilities.formatDate(new Date(r.submittedAt || Date.now()),"Asia/Kolkata","dd MMM yyyy, hh:mm:ss a")],
+    [["Roll Number","RollNumber"],attempt.roll],[["Student Name","StudentName"],safeCell(attempt.name)],[["Batch"],safeCell(attempt.batch)],
+    [["Total Score","Score"],r.score],[["Max Marks","TotalQuestions"],r.totalQuestions],[["Percentage"],r.percentage/100],
+    [["TimeTakenSec"],r.timeTakenSec??""],[["TabSwitches"],attempt.tabSwitches||0],[["FocusLosses"],attempt.focusLosses??""],[["LockedQuestions"],(attempt.lockedQuestions || []).length],[["Correct"],r.correctCount],[["Wrong"],r.wrongCount],[["Unattempted"],r.unattemptedCount],[["Question Breakdown JSON"],JSON.stringify(r.details)]];
+  r.details.forEach(d=>{
+    const q=attempt.questions.find(q=>q.id===d.questionId),prefix="Q"+d.qNo;
+    fields.push([[prefix+"_Marks"],d.mark],[[prefix+"_QuestionID"],d.questionId],[[prefix+"_Question"],safeCell(q?q.q:"")],
+      [[prefix+"_Selected"],Number.isInteger(d.selected)?String.fromCharCode(65+d.selected):"Unanswered"],
+      [[prefix+"_Correct"],q?String.fromCharCode(65+q.ans):""],[[prefix+"_Status"],d.status]);
+  });
+  const row=[];
+  fields.forEach(([aliases,value])=>{let i=resultColumn(headers,aliases);if(i<0){i=headers.length;headers.push(aliases[0]);}row[i]=value;});
+  const needed=headers.length-sheet.getMaxColumns();if(needed>0)sheet.insertColumnsAfter(sheet.getMaxColumns(),needed);
+  if(headers.length!==originalHeaderCount)sheet.getRange(1,1,1,headers.length).setValues([headers]).setFontWeight("bold");
+  sheet.appendRow(headers.map((_,i)=>row[i]??""));
+  const percent=resultColumn(headers,["Percentage"]);sheet.getRange(sheet.getLastRow(),percent+1).setNumberFormat("0.00%");
+}
+function recordedResult(roll){
+  const sheet=SpreadsheetApp.getActiveSpreadsheet().getSheetByName(RESULTS_SHEET);
+  if(!sheet || sheet.getLastRow()<2)return null;
+  const headers=sheet.getRange(1,1,1,sheet.getLastColumn()).getValues()[0];
+  const column=resultColumn(headers,["Roll Number","RollNumber"]);
+  if(column<0)return null;
+  const rolls=sheet.getRange(2,column+1,sheet.getLastRow()-1,1).getValues();
+  const index=rolls.findIndex(r=>normalizeRoll(r[0])===roll);if(index<0)return null;
+  const row=sheet.getRange(index+2,1,1,headers.length).getValues()[0];
+  const r=readResult(headers,row);
+  return {score:r.score,totalQuestions:r.maxMarks,percentage:r.percentage,correctCount:r.correct,wrongCount:r.wrong,unattemptedCount:r.unattempted,details:r.details};
+}
+function ensureResultSaved(attempt){
+  if(!recordedResult(attempt.roll)){appendResult(attempt);SpreadsheetApp.flush();}
+}
+// Run manually from Apps Script to restore completed Attempts that are missing from Results.
+// It never finalizes unfinished attempts and never creates duplicate roll-number rows.
+function repairMissingResults(){
+  const lock=LockService.getScriptLock();lock.waitLock(30000);
+  try{
+    const sheet=SpreadsheetApp.getActiveSpreadsheet().getSheetByName(ATTEMPTS_SHEET);
+    if(!sheet || sheet.getLastRow()<2)return 0;
+    let count=0;
+    sheet.getRange(2,1,sheet.getLastRow()-1,3).getValues().forEach(row=>{
+      const attempt=JSON.parse(row[2]);
+      if(attempt.result && !recordedResult(attempt.roll)){ensureResultSaved(attempt);count++;}
+    });
+    console.log("Restored "+count+" missing results.");return count;
+  }finally{if(lock.hasLock()){try{SpreadsheetApp.flush();}finally{lock.releaseLock();}}}
+}
+function getExamWindowStatus(){
+  const sheet=SpreadsheetApp.getActiveSpreadsheet().getSheetByName(SETTINGS_SHEET);
+  const settings={};if(sheet && sheet.getLastRow()>1)sheet.getRange(2,1,sheet.getLastRow()-1,2).getValues().forEach(r=>settings[r[0]]=r[1]);
+  const openValue=settings.OPEN_TIME || settings.StartTimeIST,closeValue=settings.CLOSE_TIME || settings.EndTimeIST;
+  const open=new Date(openValue || NaN),close=new Date(closeValue || NaN);
+  const duration=Number(settings.DurationMinutes || DEFAULT_DURATION);
+  const base={apiVersion:API_VERSION,examTitle:String(settings.ExamTitle || "Oracle SQL Assessment"),durationMinutes:isFinite(duration)&&duration>0?duration:DEFAULT_DURATION};
+  if(!isFinite(open.getTime()) || !isFinite(close.getTime()) || close<=open)return Object.assign(base,{state:"LOCKED",isOpen:false,message:"The exam schedule has not been configured. Please contact your teacher."});
+  const now=Date.now(),state=now<open.getTime()?"NOT_STARTED":now>=close.getTime()?"CLOSED":"OPEN";
+  return Object.assign(base,{state:state,isOpen:state==="OPEN",openISO:open.toISOString(),closeISO:close.toISOString(),
+    openFormatted:Utilities.formatDate(open,"Asia/Kolkata","dd MMM yyyy, HH:mm")+" IST (UTC+05:30)",
+    closeFormatted:Utilities.formatDate(close,"Asia/Kolkata","dd MMM yyyy, HH:mm")+" IST (UTC+05:30)"});
+}
+
+function getAllResults(){
+  const sheet=SpreadsheetApp.getActiveSpreadsheet().getSheetByName(RESULTS_SHEET);
+  if(!sheet || sheet.getLastRow()<2)return [];
+  const rows=sheet.getDataRange().getValues();return rows.slice(1).map(row=>readResult(rows[0],row));
+}
+
+function normalizeRoll(value){return String(value || "").trim().toUpperCase();}
+function jsonResponse(value){return ContentService.createTextOutput(JSON.stringify(value)).setMimeType(ContentService.MimeType.JSON);}
+
+// The stored duration deadline never moves later; a shortened closing time also applies.
+function applyClosingDeadline(attempt, closingTime){
+  const close=closingTime===undefined?new Date(getExamWindowStatus().closeISO || NaN).getTime():closingTime;
+  if(Number.isFinite(close))attempt.deadline=Math.min(attempt.deadline,close);
+}
+// Install once from the Apps Script editor while signed in as the spreadsheet owner.
+function installAutoSubmissionTrigger(){
+  const existing=ScriptApp.getProjectTriggers().filter(t=>t.getHandlerFunction()==="autoSubmitExpiredAttempts");
+  if(!existing.length)ScriptApp.newTrigger("autoSubmitExpiredAttempts").timeBased().everyMinutes(1).create();
+  return "Automatic submission check enabled (approximately every minute).";
+}
+function autoSubmitExpiredAttempts(){
+  const lock=LockService.getScriptLock();
+  if(!lock.tryLock(1000))return 0;
+  try{
+    const sheet=SpreadsheetApp.getActiveSpreadsheet().getSheetByName(ATTEMPTS_SHEET);
+    if(!sheet || sheet.getLastRow()<2)return 0;
+    const close=new Date(getExamWindowStatus().closeISO || NaN).getTime();
+    let count=0;
+    sheet.getRange(2,1,sheet.getLastRow()-1,3).getValues().forEach((row,index)=>{
+      try{
+        const attempt=JSON.parse(row[2]);
+        applyClosingDeadline(attempt,close);
+        if(!attempt.result && Date.now()>attempt.deadline+15000){
+          attempt.result=recordedResult(attempt.roll) || gradeAttempt(attempt);
+          ensureResultSaved(attempt);writeAttempt(index+2,attempt);count++;
+        }
+      }catch(err){console.error("Auto submission failed for attempt row "+(index+2)+": "+err.message);}
+    });
+    return count;
+  }finally{if(lock.hasLock()){try{SpreadsheetApp.flush();}finally{lock.releaseLock();}}}
+}
+
+// Run in the Apps Script editor to verify the bank actually installed in this project.
+function checkQuestionBank(){
+  const pool=MASTER_QUESTION_BANK.filter(q=>q.important===true && ["DDL","DML","DQL"].includes(q.category));
+  const selected=balanceAnswerPositions(selectExamQuestions(pool));
+  const report={bankVersion:"20261120-detailed-74",total:MASTER_QUESTION_BANK.length,eligible:pool.length,
+    selected:selected.length,unique:new Set(selected.map(q=>q.id)).size,
+    dataTypes:selected.filter(q=>q.topic==="Data Types").length,constraints:selected.filter(q=>q.topic==="Constraints").length,
+    answerPositions:[0,1,2,3].map(i=>selected.filter(q=>q.ans===i).length)};
+  console.log(JSON.stringify(report));return report;
+}
