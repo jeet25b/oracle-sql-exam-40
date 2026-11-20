@@ -1,0 +1,39 @@
+SECURITY REVIEW — 20 November 2026
+
+Implemented locally:
+- Question keys stay in private QuestionBank.gs; publicAttempt strips the ans field.
+- Submit Question no longer returns correctness. Final Results expose only the student's
+  score and statuses, as requested. Faculty results require server-validated credentials.
+- Faculty results moved from password-in-URL GET to POST body. Old GET results route disabled.
+- Faculty key remains in Apps Script properties; student codes checked against private roster.
+- Failed login throttling: eight failures per account, one-minute cached cooldown. Apps Script
+  cache is best-effort; this is not a full abuse-protection service or institutional SSO.
+- Payload size/type and event counter validation; HTML escaping in teacher views.
+- Student Content Security Policy restricts scripts/styles to website assets, disables object
+  embeds, and restricts API destinations. Referrer policy suppresses outgoing referrer data.
+- Student results use canonical server grading, duplicate-safe writes, deadlines and stored locks.
+- Pages workflow publishes only index.html, exam.js, exam.css, teacher.html.
+
+Material limitations:
+- F12/DevTools cannot be securely disabled. Client JavaScript, displayed questions and the
+  student's own bearer token remain inspectable. Shortcut blocking would provide no security.
+- Tab/focus events, fullscreen, local state and declared viewed questions are client-controlled.
+  Server preserves recorded locks but cannot prove that a student reported every focus loss.
+- Anyone with the student's token or roster code can act as that student. Avoid shared-browser
+  sessions; use Next student after confirmed submission. Do not share tokens or roster sheets.
+- A public repository or previously published bank can retain historical question keys and old
+  passwords. Local code changes cannot remove history or invalidate already exposed secrets.
+- Students receiving correctness at final submission may share it while other exams are open.
+  Delayed release or managed proctoring would require a separate policy/implementation change.
+- Shared spreadsheet/global write lock and Apps Script limits can be overwhelmed by heavy traffic.
+- Faculty Excel library is third-party hosted; teacher page uses inline scripts, unlike student CSP.
+
+Activation and operations:
+1. Publish index.html, exam.js and teacher.html; deploy Code.gs as a New version together.
+2. Rotate ADMIN_PASSKEY if an old value was public/shared. Use strong unique student access codes.
+3. Keep the spreadsheet and Apps Script project private. Never publish QuestionBank.gs as an asset.
+4. For higher-stakes control, use managed kiosk/proctoring or an exam platform with institutional
+   identity. A normal browser website cannot guarantee that DevTools or other apps are unavailable.
+
+Scope: source review and isolated simulated tests, not a penetration test or security certification.
+No live student records were changed during this review.

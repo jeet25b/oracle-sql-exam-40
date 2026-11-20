@@ -184,7 +184,7 @@ if(!process.argv.includes('--frontend-only')){
  });
  test('teacher API requires private script property and returns compatible result schema',()=>{
   const b=createBackend(),a=start(b).attempt;b.post({action:'submit',rollNo:a.roll,token:a.token,answers:{}});
-  assert.equal(b.get({action:'results',key:'wrong'}).status,'error');const data=b.get({action:'results',key:'test-admin-key'});assert.equal(data.status,'ok');assert.equal(data.results[0].rollNo,'TEST001');assert.equal(data.results[0].maxMarks,40);
+  assert.equal(b.post({action:'results',key:'wrong'}).status,'error');const data=b.post({action:'results',key:'test-admin-key'});assert.equal(data.status,'ok');assert.equal(data.results[0].rollNo,'TEST001');assert.equal(data.results[0].maxMarks,40);
  });
  test('backend locks survive resume and reject changed or cleared answers on save and submission',()=>{
   const b=createBackend(),a=start(b).attempt,first=a.questions[0].id,blank=a.questions[1].id;
@@ -218,7 +218,7 @@ if(!process.argv.includes('--frontend-only')){
   assert.equal(row[headers.indexOf('Q1_Selected')],'A');assert.equal(row[headers.indexOf('Q1_Question')],a.questions[0].q);
   assert.equal(row[headers.indexOf('Q2_Status')],'unattempted');assert.equal(row[headers.indexOf('Q40_Marks')],0);
   assert.equal(JSON.parse(row[headers.indexOf('Question Breakdown JSON')]).length,40);
-  const results=b.get({action:'results',key:'test-admin-key'}).results;assert.equal(results[0].score,30);assert.equal(results[0].correct,'');assert.equal(results[1].details.length,40);assert.equal(results[1].qMarks.length,40);
+  const results=b.post({action:'results',key:'test-admin-key'}).results;assert.equal(results[0].score,30);assert.equal(results[0].correct,'');assert.equal(results[1].details.length,40);assert.equal(results[1].qMarks.length,40);
   assert.equal(b.post({action:'submit',rollNo:a.roll,token:a.token,answers:{}}).status,'ok');assert.equal(rows.length,3);
  });
  test('completed attempt missing from Results is restored once by repair or retry',()=>{
@@ -235,7 +235,7 @@ if(!process.argv.includes('--frontend-only')){
   const b=createBackend(),a=start(b).attempt;
   const r=b.post({action:'submit',rollNo:a.roll,token:a.token,answers:{},tabSwitches:3,focusLosses:5,lockedQuestions:[a.questions[0].id]});assert.equal(r.status,'ok');
   const [headers,row]=b.sheets.get('Results').rows;assert.equal(row[headers.indexOf('TabSwitches')],3);assert.equal(row[headers.indexOf('FocusLosses')],5);assert.equal(row[headers.indexOf('LockedQuestions')],1);
-  const record=b.get({action:'results',key:'test-admin-key'}).results[0];assert.equal(record.focusLosses,5);assert.equal(record.tabSwitches,3);
+  const record=b.post({action:'results',key:'test-admin-key'}).results[0];assert.equal(record.focusLosses,5);assert.equal(record.tabSwitches,3);
  });
 
  test('new exams have exactly 10 correct answers in each option and preserve question meanings',()=>{
@@ -288,6 +288,37 @@ if(!process.argv.includes('--frontend-only')){
   assert.equal(b.post({action:'resumeAttempt',rollNo:a.roll,token:'wrong'}).status,'error');
   b.advance(30000);const data=b.post({action:'resumeAttempt',rollNo:a.roll,token:a.token});
   assert.equal(data.status,'ok');assert.equal(data.attempt.deadline,a.deadline);assert.equal(data.attempt.token,a.token);assert.equal(b.sheets.get('Attempts').rows.length,2);
+ });
+
+ test('attempt lookup reads IDs plus one JSON cell, not all question banks',()=>{
+  const b=createBackend(),a=start(b).attempt,sheet=b.sheets.get('Attempts');
+  const template=sheet.rows[1][2];for(let i=0;i<999;i++)sheet.rows.push(['OTHER'+i,'token',template]);
+  b.metrics.cellsRead=0;b.ctx.lookupRoll=a.roll;
+  assert(vm.runInContext('findAttempt(lookupRoll)',b.ctx));assert.equal(b.metrics.cellsRead,1001);
+ });
+ test('result lookup reads header, roll column and matching row instead of full wide sheet',()=>{
+  const b=createBackend(),a=start(b).attempt;b.post({action:'submit',rollNo:a.roll,token:a.token,answers:{}});
+  const sheet=b.sheets.get('Results'),width=sheet.getLastColumn();for(let i=0;i<199;i++){const row=sheet.rows[1].slice();row[1]='OTHER'+i;sheet.rows.push(row);}
+  b.metrics.cellsRead=0;b.ctx.lookupRoll=a.roll;assert(vm.runInContext('recordedResult(lookupRoll)',b.ctx));
+  assert.equal(b.metrics.cellsRead,width*2+200);assert(b.metrics.cellsRead<width*201/10);
+ });
+
+ test('teacher results require POST authentication; GET never exposes records',()=>{
+  const b=createBackend();assert.equal(b.get({action:'results',key:'test-admin-key'}).status,'error');
+  assert.equal(b.post({action:'results',key:'wrong'}).status,'error');assert.equal(b.post({action:'results',key:'test-admin-key'}).status,'ok');
+ });
+ test('student responses do not expose bank keys or allow access with another token',()=>{
+  const b=createBackend(),a=start(b).attempt;
+  assert(a.questions.every(q=>!('ans' in q)));assert.equal(b.post({action:'saveAttempt',rollNo:'TEST002',token:a.token,answers:{}}).status,'error');
+ });
+
+ test('repeated invalid student codes are temporarily limited and expire',()=>{
+  const b=createBackend();for(let i=0;i<8;i++)assert.equal(start(b,'TEST001','incorrect').status,'error');
+  assert.match(start(b).message,/Too many/);b.advance(61000);assert.equal(start(b).status,'ok');
+ });
+ test('oversized requests and invalid event counters are rejected',()=>{
+  const b=createBackend();assert.equal(b.post({action:'results',key:'x'.repeat(70000)}).status,'error');
+  const a=start(b).attempt;assert.equal(b.post({action:'saveAttempt',rollNo:a.roll,token:a.token,answers:{},tabSwitches:-1}).status,'error');
  });
 
 }

@@ -47,7 +47,7 @@ function changed() {
   const saved = localSave();
   if (saved) $("saveStatus").textContent = navigator.onLine ? "Saved on this device · syncing…" : "Offline · saved on this device";
   clearTimeout(saveTimer);
-  saveTimer = setTimeout(syncProgress, 650);
+  saveTimer = setTimeout(syncProgress, 1200);
 }
 async function syncProgress() {
   if (!attempt || finalized || submitPending || questionFeedbackBusy) return;
@@ -83,7 +83,13 @@ function applyTheme(theme) {
   $("themeBtn").textContent = theme === "dark" ? "Light mode" : "Dark mode";
   $("themeBtn").setAttribute("aria-label", `Switch to ${theme === "dark" ? "light" : "dark"} theme`);
 }
-async function enterFullscreen() {
+let fullscreenInFlight = null;
+function enterFullscreen() {
+  if(fullscreenInFlight)return fullscreenInFlight;
+  fullscreenInFlight=requestFullscreenNow().finally(()=>{fullscreenInFlight=null;});
+  return fullscreenInFlight;
+}
+async function requestFullscreenNow() {
   if (document.fullscreenElement) return true;
   if (!document.documentElement.requestFullscreen) {
     $("fullscreenBtn").textContent = "Use browser full screen";
@@ -368,7 +374,7 @@ function renderQuestion(focus = false) {
     const radio = document.createElement("input"); radio.type = "radio"; radio.name = "answer"; radio.value = String(index); radio.checked = attempt.answers[q.id] === index; radio.disabled = questionBlocked();
     const letter = document.createElement("span"); letter.className = "option-letter"; letter.textContent = String.fromCharCode(65 + index) + "."; letter.setAttribute("aria-hidden", "true");
     const text = document.createElement("span"); text.textContent = option;
-    radio.onchange = () => { if (questionBlocked()) return; if(attempt.feedback)delete attempt.feedback[q.id]; attempt.answers[q.id] = index; $("submitQuestionBtn").textContent = "Submit Question"; changed(); renderQuestion(); };
+    radio.onchange = () => { if (questionBlocked()) return; if(attempt.feedback)delete attempt.feedback[q.id]; attempt.answers[q.id] = index; $("submitQuestionBtn").textContent = "Submit Question"; changed(); updatePalette(); };
     label.append(radio, letter, text); options.appendChild(label);
   });
   $("prevBtn").disabled = attempt.currentIdx === 0 || submitPending;

@@ -15,20 +15,23 @@ function doGet(e) {
   try {
     const params = e && e.parameter || {};
     if (!params.action || params.action === "status") return jsonResponse(getExamWindowStatus());
-    if (params.action === "results") {
-      if (!params.key || params.key !== adminPasskey()) throw new Error("Invalid teacher passkey.");
-      return jsonResponse({status:"ok",window:getExamWindowStatus(),results:getAllResults()});
-    }
     return jsonResponse({status:"error",message:"Unknown action."});
   } catch (err) { return jsonResponse({status:"error",message:err.message}); }
 }
 function doPost(e) {
   let lock = null;
   try {
-    const data = JSON.parse(e.postData.contents);
+    const contents=e && e.postData && e.postData.contents;
+    if(typeof contents!=="string" || contents.length>65536)throw new Error("Invalid request size.");
+    const data = JSON.parse(contents);
+    if(!data || typeof data!=="object" || Array.isArray(data))throw new Error("Invalid request.");
+    if(data.action === "results"){
+      verifyAdmin(data.key);
+      return jsonResponse({status:"ok",window:getExamWindowStatus(),results:getAllResults()});
+    }
     lock = LockService.getScriptLock(); lock.waitLock(30000);
     if (data.action === "updateWindow") {
-      if (!data.key || data.key !== adminPasskey()) throw new Error("Invalid teacher passkey.");
+      verifyAdmin(data.key);
       const open = new Date(data.openTime), close = new Date(data.closeTime);
       if (!isFinite(open.getTime()) || !isFinite(close.getTime()) || close <= open) throw new Error("Enter a valid opening and closing time.");
       const ss=SpreadsheetApp.getActiveSpreadsheet();
@@ -107,14 +110,27 @@ function doPost(e) {
     writeAttempt(stored.row,attempt);
     return jsonResponse({status:"ok",result:attempt.result});
   } catch(err) { return jsonResponse({status:"error",message:err.message || String(err)}); }
-  finally { if(lock && lock.hasLock()) lock.releaseLock(); }
+  finally { if(lock && lock.hasLock()){try{SpreadsheetApp.flush();}finally{lock.releaseLock();}} }
+}
+// Short-lived per-account limits slow credential guessing. Cache expiry releases the limit.
+function authCache(){return typeof CacheService!=="undefined"?CacheService.getScriptCache():null;}
+function checkAuthLimit(id){const cache=authCache();if(cache && Number(cache.get(id)||0)>=8)throw new Error("Too many failed sign-in attempts. Wait one minute and try again.");}
+function recordAuthFailure(id){const cache=authCache();if(cache)cache.put(id,String(Number(cache.get(id)||0)+1),60);}
+function clearAuthFailures(id){const cache=authCache();if(cache)cache.remove(id);}
+function verifyAdmin(key){
+  const id="auth:faculty";checkAuthLimit(id);
+  if(!key || key!==adminPasskey()){recordAuthFailure(id);throw new Error("Invalid teacher passkey.");}
+  clearAuthFailures(id);
 }
 function verifyStudent(roll, code) {
+  const limitId="auth:student:"+roll;checkAuthLimit(limitId);
   const sheet=SpreadsheetApp.getActiveSpreadsheet().getSheetByName(STUDENTS_SHEET);
   if(!sheet || sheet.getLastRow()<2) throw new Error("Student access is not configured. Ask your teacher to set up the student roster.");
-  const rows=sheet.getRange(2,1,sheet.getLastRow()-1,3).getDisplayValues();
-  const row=rows.find(r=>normalizeRoll(r[0])===roll);
-  if(!row || !code || String(row[2])!==String(code)) throw new Error("The roll number or student access code is incorrect.");
+  const rolls=sheet.getRange(2,1,sheet.getLastRow()-1,1).getDisplayValues();
+  const index=rolls.findIndex(r=>normalizeRoll(r[0])===roll);
+  const row=index<0?null:sheet.getRange(index+2,1,1,3).getDisplayValues()[0];
+  if(!row || !code || String(row[2])!==String(code)){recordAuthFailure(limitId);throw new Error("The roll number or student access code is incorrect.");}
+  clearAuthFailures(limitId);
   return {name:String(row[1]).trim()};
 }
 function startAttempt(data, roll) {
@@ -173,11 +189,13 @@ function attemptSheet(){
 function findAttempt(roll){
   const sheet=SpreadsheetApp.getActiveSpreadsheet().getSheetByName(ATTEMPTS_SHEET);
   if(!sheet || sheet.getLastRow()<2)return null;
-  const rows=sheet.getRange(2,1,sheet.getLastRow()-1,3).getValues();
-  for(let i=0;i<rows.length;i++)if(normalizeRoll(rows[i][0])===roll)return {row:i+2,value:JSON.parse(rows[i][2])};
+  // Read the small roll-number column, then only this student's large JSON cell.
+  const rolls=sheet.getRange(2,1,sheet.getLastRow()-1,1).getValues();
+  const index=rolls.findIndex(row=>normalizeRoll(row[0])===roll);
+  if(index>=0)return {row:index+2,value:JSON.parse(sheet.getRange(index+2,3).getValues()[0][0])};
   return null;
 }
-function writeAttempt(row,attempt){attemptSheet().getRange(row,3).setValue(JSON.stringify(attempt));SpreadsheetApp.flush();}
+function writeAttempt(row,attempt){attemptSheet().getRange(row,3).setValue(JSON.stringify(attempt));}
 function updateAnswers(attempt,data){
   if(!data.answers || typeof data.answers!=="object" || Array.isArray(data.answers))throw new Error("Invalid answer data.");
   const clean={};
@@ -194,6 +212,7 @@ function updateAnswers(attempt,data){
   attempt.lockedQuestions=[...new Set([...(attempt.lockedQuestions || []), ...(Array.isArray(data.lockedQuestions)?data.lockedQuestions:[]), ...(lostFocus?attempt.seenQuestions:[])])].filter(id=>ids.includes(id));
   attempt.flags=Array.isArray(data.flags)?[...new Set(data.flags)].filter(id=>ids.includes(id)):[];
   attempt.currentIdx=Number.isInteger(data.currentIdx)?Math.max(0,Math.min(ids.length-1,data.currentIdx)):0;
+  for(const key of ["focusLosses","tabSwitches"]){if(data[key]!==undefined && (!Number.isSafeInteger(data[key]) || data[key]<0))throw new Error("Invalid event count.");}
   attempt.focusLosses=Math.max(attempt.focusLosses || 0,Math.max(0,Math.floor(Number(data.focusLosses)||0)));
   attempt.tabSwitches=Math.max(attempt.tabSwitches || 0,Math.max(0,Number(data.tabSwitches)||0));
 }
@@ -227,7 +246,8 @@ function appendResult(attempt){
   const ss=SpreadsheetApp.getActiveSpreadsheet();let sheet=ss.getSheetByName(RESULTS_SHEET);
   if(!sheet)sheet=ss.insertSheet(RESULTS_SHEET);
   if(!sheet.getLastRow())sheet.appendRow(["Timestamp (IST)","Roll Number","Student Name","Batch","Total Score","Max Marks","Correct","Wrong","Unattempted","Question Breakdown JSON"]);
-  const headers=sheet.getDataRange().getValues()[0].map(String);
+  const headers=sheet.getRange(1,1,1,sheet.getLastColumn()).getValues()[0].map(String);
+  const originalHeaderCount=headers.length;
   if(resultColumn(headers,["Roll Number","RollNumber"])<0 || resultColumn(headers,["Score","Total Score"])<0)throw new Error("Results headers are not recognized. Keep RollNumber/Score or Roll Number/Total Score headers.");
   const r=attempt.result;
   const fields=[[["Timestamp (IST)","Timestamp"],Utilities.formatDate(new Date(r.submittedAt || Date.now()),"Asia/Kolkata","dd MMM yyyy, hh:mm:ss a")],
@@ -243,16 +263,19 @@ function appendResult(attempt){
   const row=[];
   fields.forEach(([aliases,value])=>{let i=resultColumn(headers,aliases);if(i<0){i=headers.length;headers.push(aliases[0]);}row[i]=value;});
   const needed=headers.length-sheet.getMaxColumns();if(needed>0)sheet.insertColumnsAfter(sheet.getMaxColumns(),needed);
-  sheet.getRange(1,1,1,headers.length).setValues([headers]).setFontWeight("bold");
+  if(headers.length!==originalHeaderCount)sheet.getRange(1,1,1,headers.length).setValues([headers]).setFontWeight("bold");
   sheet.appendRow(headers.map((_,i)=>row[i]??""));
   const percent=resultColumn(headers,["Percentage"]);sheet.getRange(sheet.getLastRow(),percent+1).setNumberFormat("0.00%");
 }
 function recordedResult(roll){
   const sheet=SpreadsheetApp.getActiveSpreadsheet().getSheetByName(RESULTS_SHEET);
   if(!sheet || sheet.getLastRow()<2)return null;
-  const rows=sheet.getDataRange().getValues(),headers=rows[0],column=resultColumn(headers,["Roll Number","RollNumber"]);
+  const headers=sheet.getRange(1,1,1,sheet.getLastColumn()).getValues()[0];
+  const column=resultColumn(headers,["Roll Number","RollNumber"]);
   if(column<0)return null;
-  const row=rows.slice(1).find(r=>normalizeRoll(r[column])===roll);if(!row)return null;
+  const rolls=sheet.getRange(2,column+1,sheet.getLastRow()-1,1).getValues();
+  const index=rolls.findIndex(r=>normalizeRoll(r[0])===roll);if(index<0)return null;
+  const row=sheet.getRange(index+2,1,1,headers.length).getValues()[0];
   const r=readResult(headers,row);
   return {score:r.score,totalQuestions:r.maxMarks,percentage:r.percentage,correctCount:r.correct,wrongCount:r.wrong,unattemptedCount:r.unattempted,details:r.details};
 }
@@ -272,7 +295,7 @@ function repairMissingResults(){
       if(attempt.result && !recordedResult(attempt.roll)){ensureResultSaved(attempt);count++;}
     });
     console.log("Restored "+count+" missing results.");return count;
-  }finally{if(lock.hasLock())lock.releaseLock();}
+  }finally{if(lock.hasLock()){try{SpreadsheetApp.flush();}finally{lock.releaseLock();}}}
 }
 function getExamWindowStatus(){
   const sheet=SpreadsheetApp.getActiveSpreadsheet().getSheetByName(SETTINGS_SHEET);
@@ -327,5 +350,5 @@ function autoSubmitExpiredAttempts(){
       }catch(err){console.error("Auto submission failed for attempt row "+(index+2)+": "+err.message);}
     });
     return count;
-  }finally{if(lock.hasLock())lock.releaseLock();}
+  }finally{if(lock.hasLock()){try{SpreadsheetApp.flush();}finally{lock.releaseLock();}}}
 }
