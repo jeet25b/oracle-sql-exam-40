@@ -35,3 +35,7 @@
 .option.feedback-correct,.option.feedback-correct:has(input:checked){background:var(--green-bg);border-color:var(--green);color:var(--green)}
 .option.feedback-wrong,.option.feedback-wrong:has(input:checked){background:var(--red-bg);border-color:var(--red);color:var(--red)}
 .option.feedback-correct .option-letter,.option.feedback-wrong .option-letter{color:inherit}
+
+/* Selected but not submitted: slate blue, distinct from graded green/red. */
+.pal-btn.selected-answer{background:#e7edf8;border-color:#59749d;color:#294a78}
+[data-theme=dark] .pal-btn.selected-answer{background:#293d59;border-color:#809ac0;color:#d7e4fb}

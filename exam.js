@@ -426,7 +426,7 @@ function updatePalette() {
     let state = detail ? detail.status : feedback && feedback.selected===attempt.answers[q.id] ? (feedback.correct===feedback.selected?"correct":"wrong") : answered ? "answered" : "unanswered";
     const flagged = !finalized && attempt.flags.includes(q.id);
     const locked = !finalized && (attempt.lockedQuestions || []).includes(q.id);
-    btn.className = "pal-btn" + ((state === "correct" || state === "answered") ? " answered" : state === "wrong" ? " incorrect" : "") + (locked ? " locked" : "") + (flagged ? " flagged" : "") + (!finalized && !submitPending && attempt.currentIdx === idx ? " current" : "");
+    btn.className = "pal-btn" + (state === "correct" ? " answered" : state === "answered" ? " selected-answer" : state === "wrong" ? " incorrect" : "") + (locked ? " locked" : "") + (flagged ? " flagged" : "") + (!finalized && !submitPending && attempt.currentIdx === idx ? " current" : "");
     btn.disabled = submitPending;
     btn.setAttribute("aria-disabled", String(finalized || submitPending));
     btn.setAttribute("aria-label", `Question ${idx + 1}: ${state === "wrong" ? "incorrect" : state}${flagged ? ", flagged for review" : ""}${locked ? ", locked after focus loss" : ""}`);

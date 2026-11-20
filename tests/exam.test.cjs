@@ -15,9 +15,9 @@ test('frontend syntax and event-bound IDs are present',()=>{
  assert(!html.includes('Teacher Results'));assert(!html.includes('important_questions.js'));assert(!/\.ans\b/.test(js));
  assert(html.includes('type="password"'));assert(html.includes('<fieldset'));assert(html.includes('<dialog'));
 });
-test('all answered numbers stay green before submission and status labels include review flags',()=>{
+test('unsubmitted selected numbers use slate blue and include review flags',()=>{
  const {ctx,elements}=ui();vm.runInContext('updatePalette()',ctx);const b=elements.questionPalette.children;
- assert(b[0].className.includes('answered'));assert(b[1].className.includes('answered'));assert(!b[1].className.includes('incorrect'));assert(b[1].className.includes('flagged'));assert(b[1].attributes['aria-label'].includes('flagged'));assert(!b[2].className.includes('answered'));
+ assert(b[0].className.includes('selected-answer'));assert(b[1].className.includes('selected-answer'));assert(!b[0].className.split(' ').includes('answered'));assert(!b[1].className.includes('incorrect'));assert(b[1].className.includes('flagged'));assert(b[1].attributes['aria-label'].includes('flagged'));assert(!b[2].className.includes('answered'));
 });
 test('server results turn incorrect numbers red after submission and pending has no grading',()=>{
  const {ctx,elements}=ui();vm.runInContext('submitPending=true;updatePalette()',ctx);assert(!elements.questionPalette.children[1].className.includes('incorrect'));
