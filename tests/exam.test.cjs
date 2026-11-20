@@ -321,4 +321,19 @@ if(!process.argv.includes('--frontend-only')){
   const a=start(b).attempt;assert.equal(b.post({action:'saveAttempt',rollNo:a.roll,token:a.token,answers:{},tabSwitches:-1}).status,'error');
  });
 
+ test('new exams contain only DDL DML DQL and exclude DCL TCL and general theory',()=>{
+  const b=createBackend(),a=start(b).attempt;assert.equal(a.questions.length,40);
+  const stored=JSON.parse(b.sheets.get('Attempts').rows[1][2]);
+  assert(stored.questions.every(q=>['DDL','DML','DQL'].includes(q.category)));
+  assert(stored.questions.every(q=>!['DCL','TCL','DBMS & Keys','Normalization'].includes(q.topic)));
+ });
+
+ test('every exam guarantees detailed data-type and constraint coverage with valid unique options',()=>{
+  const b=createBackend(),a=start(b).attempt;const questions=JSON.parse(b.sheets.get('Attempts').rows[1][2]).questions;
+  assert.equal(questions.filter(q=>q.topic==='Data Types').length,8);assert.equal(questions.filter(q=>q.topic==='Constraints').length,8);
+  assert.equal(questions.filter(q=>q.category==='DML').length,6);assert.equal(questions.filter(q=>q.category==='DQL').length,12);
+  assert.equal(new Set(questions.map(q=>q.id)).size,40);
+  for(const q of questions){assert.equal(new Set(q.options).size,4);assert(q.ans>=0&&q.ans<4);}
+ });
+
 }

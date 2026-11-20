@@ -150,7 +150,7 @@ function startAttempt(data, roll) {
   if(recordedResult(roll)) throw new Error("Only one attempt is allowed. This roll number has already submitted the exam.");
   const win=getExamWindowStatus();
   if(!win.isOpen) throw new Error(win.message || "The exam is not open.");
-  const pool=MASTER_QUESTION_BANK.filter(q=>q.important===true).slice();
+  const pool=MASTER_QUESTION_BANK.filter(q=>q.important===true && ["DDL","DML","DQL"].includes(q.category)).slice();
   if(pool.length<EXAM_SIZE) throw new Error("The question bank must contain at least 40 eligible questions.");
   for(let i=pool.length-1;i>0;i--){const j=Math.floor(Math.random()*(i+1));[pool[i],pool[j]]=[pool[j],pool[i]];}
   const now=Date.now();
@@ -159,9 +159,28 @@ function startAttempt(data, roll) {
   if(!name || name.length>120 || !batch || batch.length>180) throw new Error("Complete your name and academic details.");
   const attempt={roll:roll,name:name,batch:batch,token:Utilities.getUuid(),startedAt:now,
     deadline:Math.min(now+win.durationMinutes*60000,new Date(win.closeISO).getTime()),
-    updatedAt:now,questions:balanceAnswerPositions(pool.slice(0,EXAM_SIZE)),answers:{},flags:[],lockedQuestions:[],seenQuestions:[],currentIdx:0,tabSwitches:0,focusLosses:0,result:null};
+    updatedAt:now,questions:balanceAnswerPositions(selectExamQuestions(pool)),answers:{},flags:[],lockedQuestions:[],seenQuestions:[],currentIdx:0,tabSwitches:0,focusLosses:0,result:null};
   const sheet=attemptSheet();sheet.appendRow([roll,attempt.token,JSON.stringify(attempt)]);SpreadsheetApp.flush();
   return {status:"ok",attempt:publicAttempt(attempt),serverNow:now};
+}
+// Guaranteed detailed coverage in every new 40-question paper.
+function selectExamQuestions(pool){
+  const groups=[
+    [8,q=>q.topic==="Data Types"],
+    [8,q=>q.topic==="Constraints"],
+    [6,q=>q.category==="DDL" && !["Data Types","Constraints"].includes(q.topic)],
+    [6,q=>q.category==="DML"],
+    [12,q=>q.category==="DQL"]
+  ];
+  const selected=[];
+  groups.forEach(([count,predicate])=>{
+    const items=pool.filter(predicate);
+    if(items.length<count)throw new Error("The question bank lacks the required topic coverage. Update QuestionBank.gs.");
+    for(let i=items.length-1;i>0;i--){const j=Math.floor(Math.random()*(i+1));[items[i],items[j]]=[items[j],items[i]];}
+    selected.push(...items.slice(0,count));
+  });
+  for(let i=selected.length-1;i>0;i--){const j=Math.floor(Math.random()*(i+1));[selected[i],selected[j]]=[selected[j],selected[i]];}
+  return selected;
 }
 // Assign a shuffled, exactly balanced answer-position schedule per new attempt.
 function balanceAnswerPositions(questions){
