@@ -134,3 +134,35 @@ AUTOMATIC SUBMISSION SETUP (ONE TIME)
    The trigger grades the last server-saved answers after a 15-second arrival allowance;
    offline unsynced answers cannot be recovered by the trigger. Trigger scheduling may vary.
    Check Apps Script Executions for failures and keep faculty spreadsheet access available.
+
+CURRENT SLIDE-DERIVED BANK (supersedes earlier bank-count notes)
+   72 active questions drawn from exactly the eight supplied Introduction, Data Types,
+   Constraints, DDL, DML, DQL, SUBQUERY and Join decks. DCL/TCL and PL/SQL remain excluded.
+   Each question has a private faculty explanation and source deck/slide references.
+   Each paper: 8 Data Types, 8 Constraints, 6 other DDL, 6 DML, 4 core DQL,
+   4 Subqueries and 4 Joins = 40. Correct positions: 10 A, 10 B, 10 C, 10 D.
+   Faculty_Questions_From_Slides.txt is the readable private question bank with answer keys.
+   Deploy separate Code.gs plus QuestionBank.gs OR use AppsScript_Complete.txt in Code.gs
+   after removing the separate QuestionBank.gs from Apps Script. Never use both approaches
+   together. Save and run checkQuestionBank: eligible=72, selected=40, unique=40.
+   Then deploy a New version of the EXISTING web app, retaining its URL.
+   Existing attempts retain their previously stored questions and answer keys.
+
+SOURCE CLARIFICATIONS
+   Oracle 19c is the stated baseline for version-dependent questions.
+   Character lengths can depend on byte/character semantics and character sets.
+   VARCHAR2 STANDARD maximum is 4000 bytes; other settings can change it.
+   A plain DEFAULT does not replace an explicitly supplied NULL.
+   CHECK can accept UNKNOWN; NOT NULL may be needed independently.
+   LIKE 'B_____' represents six characters total; 'B____' is only five.
+   INSERT ALL is used for Oracle 19c multirow examples; newer VALUES-list syntax is not assumed.
+   No question relies on the slides' broad CHAR/INTEGER performance claims or irreversible
+   recovery claims about DROP/TRUNCATE. Client SQL*Plus commands are distinguished from SQL.
+   Documentation reviewed:
+   https://docs.oracle.com/en/database/oracle/oracle-database/19/sqlrf/Data-Types.html
+   https://docs.oracle.com/en/database/oracle/oracle-database/19/sqlrf/constraint.html
+   https://docs.oracle.com/en/database/oracle/oracle-database/19/sqlrf/INSERT.html
+   https://docs.oracle.com/en/database/oracle/oracle-database/19/sqlrf/Joins.html
+   SQL behavior was reviewed against documentation; no live Oracle database was available
+   to execute all question examples. Automated tests validate structure, coverage, grading,
+   option shuffling, privacy and deployment consistency.

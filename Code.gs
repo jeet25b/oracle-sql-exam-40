@@ -170,7 +170,9 @@ function selectExamQuestions(pool){
     [8,q=>q.topic==="Constraints"],
     [6,q=>q.category==="DDL" && !["Data Types","Constraints"].includes(q.topic)],
     [6,q=>q.category==="DML"],
-    [12,q=>q.category==="DQL"]
+    [4,q=>q.category==="DQL" && !["Subqueries","Joins"].includes(q.topic)],
+    [4,q=>q.topic==="Subqueries"],
+    [4,q=>q.topic==="Joins"]
   ];
   const selected=[];
   groups.forEach(([count,predicate])=>{
@@ -376,7 +378,7 @@ function autoSubmitExpiredAttempts(){
 function checkQuestionBank(){
   const pool=MASTER_QUESTION_BANK.filter(q=>q.important===true && ["DDL","DML","DQL"].includes(q.category));
   const selected=balanceAnswerPositions(selectExamQuestions(pool));
-  const report={bankVersion:"20261120-detailed-74",total:MASTER_QUESTION_BANK.length,eligible:pool.length,
+  const report={bankVersion:"20261120-slides-72",total:MASTER_QUESTION_BANK.length,eligible:pool.length,
     selected:selected.length,unique:new Set(selected.map(q=>q.id)).size,
     dataTypes:selected.filter(q=>q.topic==="Data Types").length,constraints:selected.filter(q=>q.topic==="Constraints").length,
     answerPositions:[0,1,2,3].map(i=>selected.filter(q=>q.ans===i).length)};

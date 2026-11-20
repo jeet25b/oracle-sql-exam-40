@@ -336,4 +336,19 @@ if(!process.argv.includes('--frontend-only')){
   for(const q of questions){assert.equal(new Set(q.options).size,4);assert(q.ans>=0&&q.ans<4);}
  });
 
+ test('slide-derived bank has unique source-tagged questions and guarantees joins and subqueries',()=>{
+  const b=createBackend();const bank=JSON.parse(vm.runInContext('JSON.stringify(MASTER_QUESTION_BANK)',b.ctx));
+  assert.equal(bank.length,72);assert.equal(new Set(bank.map(q=>q.id)).size,72);assert.equal(new Set(bank.map(q=>q.q)).size,72);
+  assert.equal(new Set(bank.map(q=>q.source.file)).size,8);
+  for(const q of bank){assert(q.explanation);assert(q.source.slides.every(n=>Number.isInteger(n)&&n>0));assert.equal(new Set(q.options).size,4);}
+  const a=start(b).attempt;assert.equal(a.questions.filter(q=>q.topic==='Subqueries').length,4);assert.equal(a.questions.filter(q=>q.topic==='Joins').length,4);
+  assert(a.questions.every(q=>!('explanation' in q)&&!('ans' in q)&&!('source' in q)));
+ });
+ test('combined Apps Script deployment contains the same bank and generates 40 questions',()=>{
+  const combined=fs.readFileSync(path.join(root,'AppsScript_Complete.txt'),'utf8');const ctx=vm.createContext({console:{log(){}}});
+  vm.runInContext(combined,ctx);const report=vm.runInContext('checkQuestionBank()',ctx);
+  assert.equal(report.eligible,72);assert.equal(report.selected,40);assert.equal(report.unique,40);
+  assert.deepEqual(Array.from(report.answerPositions),[10,10,10,10]);
+ });
+
 }
