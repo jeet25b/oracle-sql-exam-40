@@ -113,13 +113,33 @@ test('focus loss after revisiting locks every seen question, leaving unseen ques
  vm.runInContext('navigate(1)',ctx);assert.equal(vm.runInContext('questionBlocked()',ctx),true);
  vm.runInContext('navigate(1)',ctx);assert.equal(vm.runInContext('questionBlocked()',ctx),false);
 });
-test('single submit click retries a transient failure and avoids competing autosaves',async()=>{
- const {ctx,elements}=ui();await vm.runInContext('initialize()',ctx);
- vm.runInContext('deadline=Date.now()+600000;',ctx);ctx.setTimeout=(callback,ms)=>{if(ms===1000)callback();return 1};let calls=0;
- ctx.api=async payload=>{assert.equal(payload.action,'submitQuestion');calls++;if(calls===1)throw new TypeError('Network interrupted');return {correctOption:1,selectedOption:0}};
+test('Submit Question advances before the server responds and saves the answer locally',async()=>{
+ const {ctx,elements,local}=ui();await vm.runInContext('initialize()',ctx);
+ vm.runInContext('deadline=Date.now()+600000;',ctx);let finish;
+ ctx.api=()=>new Promise(resolve=>{finish=resolve});
  await vm.runInContext('submitCurrentQuestion()',ctx);
- assert.equal(calls,2);assert.equal(vm.runInContext('attempt.currentIdx',ctx),1);
- assert.equal(vm.runInContext('questionFeedbackBusy',ctx),false);
+ assert.equal(vm.runInContext('attempt.currentIdx',ctx),1);assert.equal(vm.runInContext('syncing',ctx),true);
+ const saved=JSON.parse(local.get('oracle-sql-attempt-v2'));assert.equal(saved.attempt.answers[1],0);assert.equal(saved.attempt.currentIdx,1);
+ assert(elements.saveStatus.textContent.includes('Syncing'));
+ finish({status:'ok',answers:{},lockedQuestions:[]});await new Promise(r=>setImmediate(r));
+ assert.equal(elements.saveStatus.textContent,'Saved online');
+});
+test('background saving coalesces newer changes rather than marking them saved prematurely',async()=>{
+ const {ctx,elements}=ui();await vm.runInContext('initialize()',ctx);vm.runInContext('deadline=Date.now()+600000;',ctx);
+ const pending=[];ctx.api=payload=>new Promise(resolve=>pending.push({payload,resolve}));
+ await vm.runInContext('submitCurrentQuestion()',ctx);
+ vm.runInContext('attempt.answers[2]=1;changed();syncProgress()',ctx);
+ assert.equal(pending.length,1);
+ pending[0].resolve({status:'ok',answers:{},lockedQuestions:[]});await new Promise(r=>setImmediate(r));
+ assert.equal(pending.length,2);assert.equal(pending[1].payload.answers[2],1);assert.notEqual(elements.saveStatus.textContent,'Saved online');
+ pending[1].resolve({status:'ok',answers:{},lockedQuestions:[]});await new Promise(r=>setImmediate(r));assert.equal(elements.saveStatus.textContent,'Saved online');
+});
+test('failed background sync retains local answer and schedules an automatic retry',async()=>{
+ const {ctx,elements,local}=ui();await vm.runInContext('initialize()',ctx);vm.runInContext('deadline=Date.now()+600000;',ctx);
+ let retry;ctx.setTimeout=(fn,delay)=>{if(delay===3000)retry=fn;return 1};ctx.api=async()=>{throw Error('offline')};
+ await vm.runInContext('submitCurrentQuestion()',ctx);await new Promise(r=>setImmediate(r));
+ assert.equal(vm.runInContext('attempt.currentIdx',ctx),1);assert.equal(JSON.parse(local.get('oracle-sql-attempt-v2')).attempt.answers[1],0);
+ assert.equal(typeof retry,'function');assert(elements.saveStatus.textContent.includes('Retrying automatically'));
 });
 test('blank question remains blank when locked and submitted exams do not acquire new locks',()=>{
  const {ctx}=ui();vm.runInContext('deadline=Date.now()+600000;currentIdx=0;attempt.currentIdx=2;syncProgress=async()=>{};lockCurrentQuestion();',ctx);

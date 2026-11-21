@@ -6,6 +6,7 @@ const STORAGE_KEY = "oracle-sql-attempt-v2";
 const $ = id => document.getElementById(id);
 let attempt = null, deadline = 0, clockOffset = 0, timer = null, saveTimer = null;
 let sending = false, finalized = false, syncing = false, resave = false, revision = 0;
+let syncRetryTimer = null, syncFailures = 0;
 let tabAway = false, focusAway = false, focusMonitoringArmed = false;
 let needsSessionVerification = false;
 let result = null, submitPending = false, lastSync = 0, warningLevel = 0, recovery = null;
@@ -45,7 +46,7 @@ function snapshot() {
 function changed() {
   revision++;
   const saved = localSave();
-  if (saved) $("saveStatus").textContent = navigator.onLine ? "Saved on this device · syncing…" : "Offline · saved on this device";
+  if (saved) $("saveStatus").textContent = navigator.onLine ? "Saved on device · Waiting to sync" : "Saved on device · Offline";
   clearTimeout(saveTimer);
   saveTimer = setTimeout(syncProgress, 1200);
 }
@@ -54,9 +55,13 @@ async function syncProgress() {
   if (syncing) { resave = true; return; }
   syncing = true;
   const sentRevision = revision;
+  const sessionToken = attempt.token;
+  clearTimeout(syncRetryTimer);
+  $("saveStatus").textContent = "Syncing… Your answers are saved on this device.";
   try {
     const data = await api({action: "saveAttempt", rollNo: attempt.roll, token: attempt.token, ...snapshot()});
-    lastSync = Date.now();
+    if(!attempt || attempt.token!==sessionToken || finalized || submitPending)return;
+    lastSync = Date.now(); syncFailures = 0;
     if (data.result) { acceptResult(data.result); return; }
     if (Number.isFinite(data.deadline)) {
       deadline = Math.min(deadline, data.deadline); attempt.deadline = deadline;
@@ -70,9 +75,14 @@ async function syncProgress() {
       }
       localSave(); if (lockChanged) renderQuestion();
     }
-    if (sentRevision === revision) $("saveStatus").textContent = "All changes saved online";
+    if (sentRevision === revision) $("saveStatus").textContent = "Saved online";
+    else { resave = true; $("saveStatus").textContent = "Saved on device · Syncing newer changes…"; }
   } catch (err) {
-    $("saveStatus").textContent = "Not synced · your device copy is retained. Reconnecting…";
+    if(!attempt || attempt.token!==sessionToken || finalized || submitPending)return;
+    syncFailures++;
+    $("saveStatus").textContent = "Saved on device · Online sync failed. Retrying automatically…";
+    resave=false;
+    syncRetryTimer=setTimeout(syncProgress,Math.min(30000,3000*2**Math.min(syncFailures-1,4)));
   } finally {
     syncing = false;
     if (resave && !finalized && !submitPending && !questionFeedbackBusy) { resave = false; syncProgress(); }
@@ -300,33 +310,28 @@ async function submitCurrentQuestion() {
   if(questionBlocked() || questionFeedbackBusy) return;
   const q=attempt.questions[attempt.currentIdx];
   if(attempt.answers[q.id]===undefined){$("saveStatus").textContent="Select an answer before submitting this question.";return;}
-  questionFeedbackBusy=true;
-  $("submitQuestionBtn").disabled=true;
-  $("submitQuestionBtn").textContent="Saving…";
+  delete attempt.feedback;
+  if(attempt.currentIdx<attempt.questions.length-1)attempt.currentIdx++;
+  // Persist answer and next position together before changing what the student sees.
   revision++;
-  localSave();
   clearTimeout(saveTimer);
-  $("saveStatus").textContent="Saving this answer online… Please wait; one click is enough.";
-  try {
-    const payload={action:"submitQuestion",rollNo:attempt.roll,token:attempt.token,questionId:q.id,...snapshot()};
-    let response;
-    try { response=await api(payload); }
-    catch(err) {
-      if(!(err.name==="AbortError" || err.name==="TypeError" || /server is unavailable/i.test(err.message)))throw err;
-      $("saveStatus").textContent="Connection interrupted. Retrying your saved answer automatically…";
-      response=await api(payload);
-    }
-    lastSync=Date.now();
-    $("saveStatus").textContent="Answer saved online";
-    if(response.result){acceptResult(response.result);return;}
-    delete attempt.feedback;
-    localSave();
-    questionFeedbackBusy=false;
-    if(!blocked() && attempt.questions[attempt.currentIdx].id===q.id){
-      if(attempt.currentIdx<attempt.questions.length-1)navigate(1);else renderQuestion();
-    }
-  } catch(err){$("saveStatus").textContent=err.message+" Your answer is retained on this device. Select Submit Question to retry.";}
-  finally{questionFeedbackBusy=false;if(attempt && !finalized && !submitPending)renderQuestion();}
+  if(!localSave()){
+    // Storage can be blocked by browser policy. Confirm online before advancing in that case.
+    const next=attempt.currentIdx;attempt.currentIdx=attempt.questions.findIndex(item=>item.id===q.id);
+    questionFeedbackBusy=true;$("submitQuestionBtn").disabled=true;
+    $("saveStatus").textContent="Device storage unavailable · Saving online before continuing…";
+    try{
+      const data=await api({action:"saveAttempt",rollNo:attempt.roll,token:attempt.token,...snapshot()});
+      if(data.result){acceptResult(data.result);return;}
+      attempt.currentIdx=next;lastSync=Date.now();$("saveStatus").textContent="Saved online";
+    }catch(err){$("saveStatus").textContent="Unable to save locally or online. Keep this page open and retry. "+err.message;}
+    finally{questionFeedbackBusy=false;if(attempt && !finalized && !submitPending)renderQuestion();}
+    return;
+  }
+  $("saveStatus").textContent=navigator.onLine?"Saved on device · Waiting to sync":"Saved on device · Offline";
+  renderQuestion(true);
+  // Background synchronization never holds up navigation; an active request coalesces changes.
+  if(navigator.onLine)syncProgress();
 }
 function blocked() { return !attempt || finalized || submitPending || Date.now() + clockOffset >= deadline; }
 function questionBlocked() {
@@ -476,7 +481,7 @@ async function submitExam() {
   if (needsSessionVerification) { openSessionVerification(); return; }
   if (!attempt || finalized || sending) return;
   sending = true; submitPending = true;
-  clearInterval(timer); clearTimeout(saveTimer);
+  clearInterval(timer); clearTimeout(saveTimer); clearTimeout(syncRetryTimer);
   if ($("submitDialog").open) $("submitDialog").close("cancel");
   localSave(); showResults();
   $("resultHeading").textContent = "Saving your assessment…";
@@ -499,7 +504,7 @@ async function submitExam() {
 function acceptResult(value) {
   needsSessionVerification = false;
   result = value; finalized = true; submitPending = false;
-  clearInterval(timer); clearTimeout(saveTimer);
+  clearInterval(timer); clearTimeout(saveTimer); clearTimeout(syncRetryTimer);
   // Use the server's accepted answers, including its deadline cutoff.
   attempt.answers = Object.fromEntries(result.details.filter(d => Number.isInteger(d.selected)).map(d => [d.questionId, d.selected]));
   localSave(); showResults();
@@ -511,7 +516,7 @@ function nextStudent() {
     $("resultSummary").textContent = "Unable to clear the saved session. Please allow site storage and try again.";
     return;
   }
-  clearInterval(timer); clearTimeout(saveTimer);
+  clearInterval(timer); clearTimeout(saveTimer); clearTimeout(syncRetryTimer);
   attempt = null; recovery = null; result = null; finalized = false; submitPending = false;
   // pagehide/beforeunload cannot rewrite the cleared previous student's session.
   window.location.reload();

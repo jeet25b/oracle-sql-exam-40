@@ -180,3 +180,13 @@ FACULTY WEBSITE QUESTION EDITING
    New attempts use the merged edited bank. Invalid coverage changes are rejected.
    A stale edit is rejected to prevent overwriting another faculty member's changes.
    Faculty edits are authenticated server-side. Source decks do not change automatically.
+
+LOCAL SAVE AND BACKGROUND SYNC (21 November 2026)
+   Submit Question now stores the answer and next position locally before advancing.
+   Online synchronization runs in the background, combining changes made during a request.
+   Status shows Saved on device, Syncing, or Saved online only for the latest acknowledged state.
+   Failed syncs retry with increasing delays (3 to 30 seconds); reconnect also triggers sync.
+   Final Submit Exam sends all current answers and still waits for server confirmation.
+   If device storage is blocked, question submission waits for an online save instead.
+   Unsynced answers are not yet available to server automatic submission or another computer.
+   Publish index.html and exam.js. No additional backend deployment is needed for this change.
